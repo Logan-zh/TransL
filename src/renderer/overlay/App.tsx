@@ -126,10 +126,11 @@ export default function App(): JSX.Element {
 
       {state.status === 'success' && (
         <>
-          <div className={`overlay-body${state.imageDataUrl ? ' overlay-body-screenshot' : ''}`}>
-            {state.imageDataUrl && (
-              <ZoomableImage src={state.imageDataUrl} alt="譯文圖預覽" />
-            )}
+          {state.imageDataUrl && (
+            <ZoomableImage src={state.imageDataUrl} alt="譯文圖預覽" />
+          )}
+
+          <div className={`overlay-body${state.imageDataUrl ? ' overlay-body-with-image' : ''}`}>
             <p className="overlay-original">
               {state.imageDataUrl ? state.original : truncate(state.original, MAX_ORIGINAL_PREVIEW)}
             </p>

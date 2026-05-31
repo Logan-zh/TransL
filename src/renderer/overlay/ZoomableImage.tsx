@@ -42,6 +42,7 @@ export default function ZoomableImage({ src, alt }: ZoomableImageProps): JSX.Ele
       return
     }
 
+    event.preventDefault()
     dragging.current = true
     viewportRef.current?.setPointerCapture(event.pointerId)
     dragStart.current = {
@@ -57,10 +58,15 @@ export default function ZoomableImage({ src, alt }: ZoomableImageProps): JSX.Ele
       return
     }
 
+    event.preventDefault()
     setOffset({
       x: dragStart.current.offsetX + (event.clientX - dragStart.current.x),
       y: dragStart.current.offsetY + (event.clientY - dragStart.current.y)
     })
+  }
+
+  const handleDragStart = (event: React.DragEvent): void => {
+    event.preventDefault()
   }
 
   const stopDragging = (event: React.PointerEvent): void => {
@@ -106,12 +112,14 @@ export default function ZoomableImage({ src, alt }: ZoomableImageProps): JSX.Ele
         onPointerUp={stopDragging}
         onPointerCancel={stopDragging}
         onPointerLeave={stopDragging}
+        onDragStart={handleDragStart}
       >
         <img
           className="overlay-image-content"
           src={src}
           alt={alt}
           draggable={false}
+          onDragStart={handleDragStart}
           style={{
             transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`
           }}
