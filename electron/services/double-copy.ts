@@ -12,6 +12,13 @@ let lastSeq = 0
 let lastChangeTime = 0
 let lastTriggerTime = 0
 let onDoubleCopy: (() => void) | null = null
+let suppressed = false
+
+export function setDoubleCopySuppressed(value: boolean): void {
+  suppressed = value
+  lastChangeTime = 0
+  lastSeq = getClipboardSequenceNumber()
+}
 
 export function startDoubleCopyListener(handler: () => void): void {
   stopDoubleCopyListener()
@@ -24,6 +31,11 @@ export function startDoubleCopyListener(handler: () => void): void {
   pollTimer = setInterval(() => {
     const seq = getClipboardSequenceNumber()
     if (seq === lastSeq) {
+      return
+    }
+
+    if (suppressed) {
+      lastSeq = seq
       return
     }
 

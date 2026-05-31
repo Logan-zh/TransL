@@ -4,6 +4,14 @@
 
 格式以 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.1.0/) 為參考，版本號遵循 [語意化版本](https://semver.org/lang/zh-TW/)。
 
+## [1.2.1] - 2026-05-31
+
+### 修復
+
+- 修正 Ctrl 雙擊 D 翻譯貼上時，因程式寫入剪貼簿而誤觸 Ctrl 雙擊 C 浮動窗的問題
+
+---
+
 ## [1.2.0] - 2026-05-31
 
 ### 新增

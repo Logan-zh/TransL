@@ -8,7 +8,7 @@ import {
 import { join } from 'path'
 import { getTextFromClipboard } from './services/clipboard-text'
 import { copySelectedTextFromTarget } from './services/copy-selection'
-import { startDoubleCopyListener, stopDoubleCopyListener } from './services/double-copy'
+import { startDoubleCopyListener, stopDoubleCopyListener, setDoubleCopySuppressed } from './services/double-copy'
 import { startDoubleCtrlDListener, stopDoubleCtrlDListener } from './services/double-ctrl-d'
 import { detectTranslationDirection } from './services/language'
 import { pasteTranslation } from './services/paste'
@@ -226,6 +226,7 @@ async function handleDoubleCtrlDTranslatePaste(): Promise<void> {
 
   isTranslating = true
   captureTargetWindow()
+  setDoubleCopySuppressed(true)
   let clipboardBackup = ''
 
   try {
@@ -242,6 +243,7 @@ async function handleDoubleCtrlDTranslatePaste(): Promise<void> {
     const message = error instanceof Error ? error.message : String(error)
     dialog.showErrorBox('翻譯貼上失敗', message)
   } finally {
+    setDoubleCopySuppressed(false)
     clearTargetWindow()
     isTranslating = false
   }
