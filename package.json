@@ -7,7 +7,8 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "dist:win": "npm run build && electron-builder --win"
+    "dist:win": "npm run icons && npm run build && electron-builder --win",
+    "icons": "node scripts/generate-icon.mjs"
   },
   "author": "",
   "license": "MIT",
