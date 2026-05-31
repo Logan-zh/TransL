@@ -29,10 +29,18 @@ import {
 import type { ScreenRect } from './services/config'
 import { createTranslationProvider } from './services/translation'
 import type { RetoneOption, TranslationTone } from './services/config'
-import { getSettings, saveSettings, applyStoredAutoLaunch } from './services/settings-store'
+import { getSettings, saveSettings, applyStoredAutoLaunch, hasLegacyApiKeys } from './services/settings-store'
+import { isAccessTokenValid } from './services/auth-store'
+import {
+  ensureAuthenticated,
+  getProfile,
+  login as apiLogin,
+  logout as apiLogout
+} from './services/api-client'
 import { createTray, destroyTray, showTrayBalloon } from './services/tray'
 import { getAppIconPath } from './services/icon-path'
 import { captureTargetWindow, clearTargetWindow } from './services/window-focus'
+import { checkForDesktopUpdate } from './services/release-check'
 
 const OVERLAY_WIDTH = 420
 const OVERLAY_MAX_HEIGHT = 460
@@ -40,6 +48,7 @@ const CURSOR_OFFSET = 16
 
 let overlayWindow: BrowserWindow | null = null
 let settingsWindow: BrowserWindow | null = null
+let loginWindow: BrowserWindow | null = null
 let isTranslating = false
 let suppressOverlayBlur = false
 let lastOverlayImageDataUrl: string | undefined
@@ -127,6 +136,45 @@ function createOverlayWindow(): BrowserWindow {
   return overlayWindow
 }
 
+function createLoginWindow(): BrowserWindow {
+  if (loginWindow && !loginWindow.isDestroyed()) {
+    loginWindow.focus()
+    return loginWindow
+  }
+
+  loginWindow = new BrowserWindow({
+    width: 420,
+    height: 480,
+    show: false,
+    autoHideMenuBar: true,
+    title: 'TransL 登入',
+    icon: getAppIconPath(),
+    resizable: false,
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false
+    }
+  })
+
+  if (process.env.ELECTRON_RENDERER_URL) {
+    loginWindow.loadURL(`${process.env.ELECTRON_RENDERER_URL}/login/index.html`)
+  } else {
+    loginWindow.loadFile(join(__dirname, '../renderer/login/index.html'))
+  }
+
+  loginWindow.once('ready-to-show', () => {
+    loginWindow?.show()
+  })
+
+  loginWindow.on('closed', () => {
+    loginWindow = null
+  })
+
+  return loginWindow
+}
+
 function createSettingsWindow(): BrowserWindow {
   if (settingsWindow && !settingsWindow.isDestroyed()) {
     settingsWindow.focus()
@@ -207,9 +255,9 @@ function showOverlayError(message: string): void {
 }
 
 async function translateText(original: string, tone: TranslationTone = 'default'): Promise<string> {
+  await ensureAuthenticated()
   const direction = detectTranslationDirection(original)
-  const settings = getSettings()
-  const provider = createTranslationProvider(settings)
+  const provider = createTranslationProvider()
   return provider.translate(original, direction, tone)
 }
 
@@ -321,8 +369,8 @@ async function handleScreenshotTranslate(): Promise<void> {
 
     showOverlayLoading('', '辨識並翻譯圖片中…')
 
-    const settings = getSettings()
-    const provider = createTranslationProvider(settings)
+    await ensureAuthenticated()
+    const provider = createTranslationProvider()
     const result = await provider.translateImage(image)
 
     lastScreenshotNativeImage = image
@@ -397,6 +445,40 @@ function setupIpc(): void {
     return saveSettings(partial)
   })
 
+  ipcMain.handle('auth:session', async () => {
+    const legacyApiKeyDetected = hasLegacyApiKeys()
+    if (!isAccessTokenValid()) {
+      return { loggedIn: false, profile: null, legacyApiKeyDetected }
+    }
+    try {
+      const profile = await getProfile()
+      return { loggedIn: true, profile, legacyApiKeyDetected }
+    } catch {
+      return { loggedIn: false, profile: null, legacyApiKeyDetected }
+    }
+  })
+
+  ipcMain.handle('auth:login', async (_event, payload: { username: string; password: string }) => {
+    const profile = await apiLogin(payload.username, payload.password)
+    if (loginWindow && !loginWindow.isDestroyed()) {
+      loginWindow.close()
+    }
+    if (!profile.provider) {
+      showTrayBalloon('TransL', '登入成功，但尚未指派翻譯服務，請聯絡管理員。')
+    } else {
+      showTrayBalloon('TransL', `歡迎 ${profile.username}，翻譯功能已就緒。`)
+    }
+    return profile
+  })
+
+  ipcMain.handle('auth:logout', async () => {
+    apiLogout()
+  })
+
+  ipcMain.on('auth:open-login', () => {
+    createLoginWindow()
+  })
+
   ipcMain.on('capture:complete', (_event, bounds: ScreenRect) => {
     completeScreenshotPicker(bounds)
   })
@@ -420,6 +502,9 @@ function setupApp(): void {
       setupKeyboardListeners()
       showTrayBalloon('TransL', '快捷鍵監聽已重新載入')
     },
+    onCheckUpdate: () => {
+      void checkForDesktopUpdate()
+    },
     onQuit: () => {
       app.quit()
     }
@@ -441,17 +526,24 @@ if (!gotTheLock) {
     createSettingsWindow()
   })
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     applyStoredAutoLaunch()
     setupApp()
 
-    const settings = getSettings()
-    const hasApiKey =
-      (settings.provider === 'openai' && settings.openaiApiKey) ||
-      (settings.provider === 'gemini' && settings.geminiApiKey)
+    void checkForDesktopUpdate({ silent: true })
 
-    if (!hasApiKey) {
-      createSettingsWindow()
+    if (!isAccessTokenValid()) {
+      createLoginWindow()
+      return
+    }
+
+    try {
+      const profile = await getProfile()
+      if (!profile.provider) {
+        showTrayBalloon('TransL', '尚未指派翻譯服務，請聯絡管理員後再使用翻譯功能。')
+      }
+    } catch {
+      createLoginWindow()
     }
   })
 

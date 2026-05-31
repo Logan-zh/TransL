@@ -2,8 +2,10 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type {
   AppSettings,
   CaptureInitPayload,
+  MemberProfile,
   RetoneOption,
   ScreenRect,
+  SessionInfo,
   TranslateErrorPayload,
   TranslateLoadingPayload,
   TranslateResultPayload
@@ -18,6 +20,10 @@ export interface ElectronAPI {
   retoneTranslation: (original: string, tone: RetoneOption) => Promise<void>
   getSettings: () => Promise<AppSettings>
   saveSettings: (settings: Partial<AppSettings>) => Promise<AppSettings>
+  getSession: () => Promise<SessionInfo>
+  login: (payload: { username: string; password: string }) => Promise<MemberProfile>
+  logout: () => Promise<void>
+  openLogin: () => void
   onCaptureInit: (callback: (payload: CaptureInitPayload) => void) => () => void
   completeCapture: (bounds: ScreenRect) => void
   cancelCapture: () => void
@@ -52,6 +58,10 @@ const api: ElectronAPI = {
   retoneTranslation: (original, tone) => ipcRenderer.invoke('overlay:retone', { original, tone }),
   getSettings: () => ipcRenderer.invoke('settings:get'),
   saveSettings: (settings) => ipcRenderer.invoke('settings:save', settings),
+  getSession: () => ipcRenderer.invoke('auth:session'),
+  login: (payload) => ipcRenderer.invoke('auth:login', payload),
+  logout: () => ipcRenderer.invoke('auth:logout'),
+  openLogin: () => ipcRenderer.send('auth:open-login'),
   onCaptureInit: (callback) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: CaptureInitPayload): void => {
       callback(payload)

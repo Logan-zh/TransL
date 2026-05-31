@@ -1,6 +1,6 @@
 # TransL
 
-Windows 桌面應用程式：選取文字後，按住 Ctrl 連按兩次 C 呼叫翻譯浮動窗，透過 OpenAI 或 Google Gemini API 自動翻譯。
+Windows 桌面應用程式（**2.0 會員版**）：選取文字後，按住 Ctrl 連按兩次 C 呼叫翻譯浮動窗。翻譯服務由 [TransL-admin](../TransL-admin) 後台管理，會員登入後使用。
 
 ## 功能
 
@@ -8,7 +8,7 @@ Windows 桌面應用程式：選取文字後，按住 Ctrl 連按兩次 C 呼叫
 - 連按兩次 `Ctrl+D` **翻譯並直接貼上**（0.8 秒內，無浮動窗）
 - **Ctrl + Alt + 雙擊 S** 框選螢幕區域，辨識圖中文字並翻譯；**譯文疊加至截圖** 後寫入剪貼簿
 - 英文 → 繁體中文；中文 → 英文（自動偵測）
-- 支援 OpenAI 與 Gemini 兩種 AI 服務
+- **會員登入**：由管理後台建立帳號並指派 OpenAI / Gemini 服務
 - Always-on-top 浮動翻譯窗，顯示於游標附近（保留原文換行排版，方便對照）
 - 翻譯完成後可 **貼上** 譯文，或 **修改** 語氣（更平易近人 / 更專業）
 - 系統匣常駐，右鍵可開啟設定
@@ -25,7 +25,13 @@ npm install
 npm run dev
 ```
 
-首次執行若尚未設定 API Key，會自動開啟設定視窗；也可從系統匣圖示右鍵 → **設定** 進行設定。
+首次執行若尚未登入，會自動開啟登入視窗。請先啟動 TransL-admin 後台並建立會員帳號。
+
+```bash
+# 另開 terminal 啟動後台（需 Docker）
+cd ../TransL-admin
+docker compose up -d --build
+```
 
 ## 使用方式
 
@@ -50,12 +56,30 @@ npm run dist:win
 
 | 項目 | 說明 | 預設值 |
 |------|------|--------|
-| Provider | OpenAI 或 Gemini | OpenAI |
-| OpenAI Model | Chat Completions 模型 | gpt-4o-mini |
-| Gemini Model | Generate Content 模型 | gemini-2.0-flash |
 | 開機自動啟動 | 登入 Windows 後常駐系統匣 | 關閉 |
 
-API Key 儲存於本機使用者目錄（electron-store），不會寫入專案檔案。
+會員帳號與翻譯服務指派請至 TransL-admin 管理後台（預設 http://localhost:8080，admin/admin）。
+
+## API 伺服器位址（部署用）
+
+桌面版 **不提供使用者設定** API 位址，改由環境變數 `TRANSL_API_URL` 設定。
+
+**開發／本機建置**：複製 `.env.example` 為 `.env` 後調整：
+
+```bash
+TRANSL_API_URL=http://localhost:3000
+```
+
+**打包正式版**（建置時寫入）：
+
+```powershell
+$env:TRANSL_API_URL="https://api.your-domain.com"
+npm run dist:win
+```
+
+或在專案根目錄建立 `.env` 再執行 `npm run dist:win`。
+
+**執行時覆寫**（進階）：在啟動 TransL 前設定系統環境變數 `TRANSL_API_URL` 可覆蓋建置時的值。
 
 ## 已知限制
 

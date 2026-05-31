@@ -1,40 +1,33 @@
 import { FormEvent, useEffect, useState } from 'react'
-
-type ProviderId = 'openai' | 'gemini'
-
-interface SettingsForm {
-  provider: ProviderId
-  openaiApiKey: string
-  geminiApiKey: string
-  openaiModel: string
-  geminiModel: string
-  openAtLogin: boolean
-}
+import type { SessionInfo } from '../../../electron/services/config'
 
 export default function App(): JSX.Element {
-  const [form, setForm] = useState<SettingsForm | null>(null)
+  const [openAtLogin, setOpenAtLogin] = useState(false)
+  const [session, setSession] = useState<SessionInfo | null>(null)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
 
+  const refresh = async (): Promise<void> => {
+    const [settings, sessionInfo] = await Promise.all([
+      window.electronAPI.getSettings(),
+      window.electronAPI.getSession()
+    ])
+    setOpenAtLogin(settings.openAtLogin)
+    setSession(sessionInfo)
+  }
+
   useEffect(() => {
-    void window.electronAPI.getSettings().then((settings) => {
-      setForm(settings)
+    void refresh().catch((error) => {
+      setMessage(error instanceof Error ? error.message : '載入失敗')
     })
   }, [])
 
-  const updateField = <K extends keyof SettingsForm>(key: K, value: SettingsForm[K]): void => {
-    setForm((prev) => (prev ? { ...prev, [key]: value } : prev))
-  }
-
   const handleSubmit = async (event: FormEvent): Promise<void> => {
     event.preventDefault()
-    if (!form) return
-
     setSaving(true)
     setMessage(null)
-
     try {
-      await window.electronAPI.saveSettings(form)
+      await window.electronAPI.saveSettings({ openAtLogin })
       setMessage('設定已儲存。')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '儲存失敗')
@@ -43,7 +36,12 @@ export default function App(): JSX.Element {
     }
   }
 
-  if (!form) {
+  const handleLogout = async (): Promise<void> => {
+    await window.electronAPI.logout()
+    window.electronAPI.openLogin()
+  }
+
+  if (!session) {
     return (
       <div className="settings-page">
         <p>載入中…</p>
@@ -51,104 +49,67 @@ export default function App(): JSX.Element {
     )
   }
 
+  const profile = session.profile
+
   return (
     <div className="settings-page">
       <header className="settings-header">
         <h1>TransL 設定</h1>
-        <p>選取文字後，按住 Ctrl 在 0.8 秒內連按兩次 C 呼叫翻譯窗。</p>
+        <p>2.0 會員版：翻譯服務由管理後台指派，請先登入會員帳號。</p>
       </header>
 
+      <section className="settings-section session-card">
+        <h2>登入狀態</h2>
+        {session.loggedIn && profile ? (
+          <>
+            <p>
+              <strong>{profile.username}</strong>
+              {profile.displayName ? `（${profile.displayName}）` : ''}
+            </p>
+            <p className="settings-hint">
+              指派服務：
+              {profile.provider
+                ? `${profile.provider.name} (${profile.provider.provider} / ${profile.provider.model})`
+                : '尚未指派，請聯絡管理員'}
+            </p>
+            <button type="button" className="settings-secondary" onClick={() => void handleLogout()}>
+              登出
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="settings-hint">尚未登入</p>
+            <button type="button" className="settings-secondary" onClick={() => window.electronAPI.openLogin()}>
+              登入
+            </button>
+          </>
+        )}
+      </section>
+
+      {session.legacyApiKeyDetected && (
+        <p className="settings-warning">
+          偵測到 1.x 版本的本機 API Key 設定。2.0 起請改由管理員建立會員帳號登入，本機 Key 已不再使用。
+        </p>
+      )}
+
       <form className="settings-form" onSubmit={(e) => void handleSubmit(e)}>
-        <section className="settings-section">
-          <label htmlFor="provider">翻譯服務</label>
-          <select
-            id="provider"
-            value={form.provider}
-            onChange={(e) => updateField('provider', e.target.value as ProviderId)}
-          >
-            <option value="openai">OpenAI</option>
-            <option value="gemini">Google Gemini</option>
-          </select>
-        </section>
-
-        {form.provider === 'openai' && (
-          <>
-            <section className="settings-section">
-              <label htmlFor="openaiApiKey">OpenAI API Key</label>
-              <input
-                id="openaiApiKey"
-                type="password"
-                value={form.openaiApiKey}
-                onChange={(e) => updateField('openaiApiKey', e.target.value)}
-                placeholder="sk-..."
-                autoComplete="off"
-              />
-            </section>
-            <section className="settings-section">
-              <label htmlFor="openaiModel">OpenAI Model</label>
-              <input
-                id="openaiModel"
-                type="text"
-                value={form.openaiModel}
-                onChange={(e) => updateField('openaiModel', e.target.value)}
-                placeholder="gpt-4o-mini"
-              />
-            </section>
-          </>
-        )}
-
-        {form.provider === 'gemini' && (
-          <>
-            <section className="settings-section">
-              <label htmlFor="geminiApiKey">Gemini API Key</label>
-              <input
-                id="geminiApiKey"
-                type="password"
-                value={form.geminiApiKey}
-                onChange={(e) => updateField('geminiApiKey', e.target.value)}
-                placeholder="AIza..."
-                autoComplete="off"
-              />
-            </section>
-            <section className="settings-section">
-              <label htmlFor="geminiModel">Gemini Model</label>
-              <input
-                id="geminiModel"
-                type="text"
-                value={form.geminiModel}
-                onChange={(e) => updateField('geminiModel', e.target.value)}
-                placeholder="gemini-2.0-flash"
-              />
-            </section>
-          </>
-        )}
-
         <section className="settings-section settings-checkbox-row">
           <label htmlFor="openAtLogin" className="settings-checkbox-label">
             <input
               id="openAtLogin"
               type="checkbox"
-              checked={form.openAtLogin}
-              onChange={(e) => updateField('openAtLogin', e.target.checked)}
+              checked={openAtLogin}
+              onChange={(e) => setOpenAtLogin(e.target.checked)}
             />
             <span>開機時自動啟動</span>
           </label>
-          <p className="settings-hint">啟用後，Windows 登入時會在背景常駐系統匣。</p>
         </section>
 
         <button type="submit" className="settings-save" disabled={saving}>
           {saving ? '儲存中…' : '儲存設定'}
         </button>
-
         {message && <p className="settings-message">{message}</p>}
       </form>
-
-      <footer className="settings-footer">
-        <p>
-          使用方式：選取文字 → 0.8 秒內連按兩次 Ctrl+C → 浮動窗顯示譯文。
-          也可從系統匣右鍵「翻譯目前剪貼簿」手動觸發。
-        </p>
-      </footer>
     </div>
   )
 }

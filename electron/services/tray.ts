@@ -15,6 +15,7 @@ export interface TrayHandlers {
   onOpenSettings: () => void
   onTranslateClipboard: () => void
   onReloadListener: () => void
+  onCheckUpdate: () => void
   onQuit: () => void
 }
 
@@ -38,6 +39,10 @@ export function createTray(handlers: TrayHandlers): Tray {
     {
       label: '重新載入監聽',
       click: handlers.onReloadListener
+    },
+    {
+      label: '檢查更新',
+      click: handlers.onCheckUpdate
     },
     { type: 'separator' },
     {
