@@ -1,0 +1,104 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+  background: #f4f5f7;
+  color: #1c1c1e;
+}
+
+.settings-page {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 28px 24px 32px;
+}
+
+.settings-header h1 {
+  font-size: 24px;
+  margin-bottom: 6px;
+}
+
+.settings-header p {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 24px;
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-section label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.settings-section input,
+.settings-section select {
+  padding: 10px 12px;
+  border: 1px solid #d0d4dc;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #fff;
+}
+
+.settings-section input:focus,
+.settings-section select:focus {
+  outline: none;
+  border-color: #4a7dff;
+  box-shadow: 0 0 0 3px rgba(74, 125, 255, 0.15);
+}
+
+.settings-hint {
+  font-size: 12px;
+  color: #888;
+}
+
+.settings-save {
+  margin-top: 8px;
+  padding: 11px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settings-save:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.settings-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.settings-message {
+  font-size: 13px;
+  color: #15803d;
+}
+
+.settings-footer {
+  margin-top: 28px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e5ea;
+}
+
+.settings-footer p {
+  font-size: 12px;
+  color: #777;
+  line-height: 1.5;
+}
