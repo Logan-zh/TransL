@@ -40,7 +40,17 @@ async function parseError(response: Response, requestUrl: string): Promise<ApiEr
   const message = Array.isArray(body.message)
     ? body.message.join(', ')
     : body.message ?? `HTTP ${response.status}`
-  return new ApiError(formatErrorMessage(message, response.status, requestUrl), body.code, response.status)
+  const code =
+    typeof body.message === 'object' && body.message !== null && !Array.isArray(body.message)
+      ? body.message.code
+      : body.code
+  const hint =
+    code === 'QUOTA_EXCEEDED' ? ' 請至官網會員入口查看本月配額。' : ''
+  return new ApiError(
+    formatErrorMessage(`${message}${hint}`, response.status, requestUrl),
+    code,
+    response.status
+  )
 }
 
 function formatErrorMessage(message: string, status: number, requestUrl: string): string {

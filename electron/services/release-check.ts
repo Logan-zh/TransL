@@ -1,10 +1,18 @@
 import { app, dialog, shell } from 'electron'
 import { getApiBaseUrl } from './api-config'
+import { showTrayBalloon } from './tray'
 
 export interface DesktopReleaseInfo {
   version: string
   downloadUrl: string
   releaseNotes: string | null
+}
+
+export interface UpdateCheckResult {
+  status: 'update' | 'current' | 'unavailable'
+  current?: string
+  latest?: string
+  apiUrl?: string
 }
 
 function parseVersionParts(version: string): number[] {
@@ -29,30 +37,35 @@ export function isNewerVersion(latest: string, current: string): boolean {
 }
 
 export async function fetchPublicRelease(): Promise<DesktopReleaseInfo | null> {
+  const apiUrl = `${getApiBaseUrl()}/api/public/release`
   try {
-    const response = await fetch(`${getApiBaseUrl()}/api/public/release`)
+    const response = await fetch(apiUrl)
     if (!response.ok) {
+      console.warn('[TransL] release check HTTP', response.status, apiUrl)
       return null
     }
     return (await response.json()) as DesktopReleaseInfo
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.warn('[TransL] release check failed:', message, apiUrl)
     return null
   }
 }
 
 export async function checkForDesktopUpdate(options: {
   silent?: boolean
-} = {}): Promise<void> {
+} = {}): Promise<UpdateCheckResult> {
+  const apiUrl = `${getApiBaseUrl()}/api/public/release`
   const release = await fetchPublicRelease()
   if (!release) {
     if (!options.silent) {
       await dialog.showMessageBox({
         type: 'info',
         title: 'TransL 更新',
-        message: '目前無法取得版本資訊，請稍後再試或至官網下載。'
+        message: `目前無法取得版本資訊，請稍後再試或至官網下載。\n\nAPI：${apiUrl}`
       })
     }
-    return
+    return { status: 'unavailable', apiUrl }
   }
 
   const current = app.getVersion()
@@ -61,13 +74,17 @@ export async function checkForDesktopUpdate(options: {
       await dialog.showMessageBox({
         type: 'info',
         title: 'TransL 更新',
-        message: `您使用的是最新版本（v${current}）。`
+        message: `您使用的是最新版本（v${current}）。\n\n伺服器最新版：v${release.version}`
       })
     }
-    return
+    return { status: 'current', current, latest: release.version, apiUrl }
   }
 
   const notes = release.releaseNotes ? `\n\n${release.releaseNotes}` : ''
+  showTrayBalloon(
+    'TransL 有新版本',
+    `v${release.version} 已發佈（目前 v${current}）`
+  )
   const result = await dialog.showMessageBox({
     type: 'info',
     title: 'TransL 有新版本',
@@ -80,4 +97,6 @@ export async function checkForDesktopUpdate(options: {
   if (result.response === 0) {
     await shell.openExternal(release.downloadUrl)
   }
+
+  return { status: 'update', current, latest: release.version, apiUrl }
 }

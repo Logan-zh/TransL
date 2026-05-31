@@ -4,6 +4,14 @@
 
 格式以 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.1.0/) 為參考，版本號遵循 [語意化版本](https://semver.org/lang/zh-TW/)。
 
+## [Unreleased]
+
+### 變更
+
+- 直接翻譯貼上快捷鍵由 **Ctrl 雙擊 D** 改為 **Ctrl+Alt 雙擊 D**，降低與其他應用快捷鍵衝突
+
+---
+
 ## [2.0.0] - 2026-05-31
 
 ### 新增

@@ -522,7 +522,7 @@ function setupApp(): void {
   setupKeyboardListeners()
   showTrayBalloon(
     'TransL 已啟動',
-    'Ctrl 雙擊 C：翻譯｜Ctrl 雙擊 D：翻譯貼上｜Ctrl+Alt 雙擊 S：截圖翻譯'
+    'Ctrl 雙擊 C：翻譯｜Ctrl+Alt 雙擊 D：翻譯貼上｜Ctrl+Alt 雙擊 S：截圖翻譯'
   )
 }
 
@@ -539,7 +539,10 @@ if (!gotTheLock) {
     applyStoredAutoLaunch()
     setupApp()
 
-    void checkForDesktopUpdate({ silent: true })
+    // 延後檢查，避免登入視窗搶焦點；silent 僅略過「已是最新／連線失敗」提示
+    setTimeout(() => {
+      void checkForDesktopUpdate({ silent: true })
+    }, 3000)
 
     if (!isAccessTokenValid()) {
       createLoginWindow()

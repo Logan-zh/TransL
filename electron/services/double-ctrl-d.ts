@@ -18,12 +18,12 @@ function isKeyDown(vk: number): boolean {
   return (GetAsyncKeyState(vk) & 0x8000) !== 0
 }
 
-function isCtrlHeld(): boolean {
-  return isKeyDown(VK_CONTROL)
+function isCtrlAltHeld(): boolean {
+  return isKeyDown(VK_CONTROL) && isKeyDown(VK_MENU)
 }
 
 function hasBlockingModifiers(): boolean {
-  return isKeyDown(VK_SHIFT) || isKeyDown(VK_MENU) || isKeyDown(VK_LWIN) || isKeyDown(VK_RWIN)
+  return isKeyDown(VK_SHIFT) || isKeyDown(VK_LWIN) || isKeyDown(VK_RWIN)
 }
 
 let pollTimer: NodeJS.Timeout | null = null
@@ -42,20 +42,20 @@ export function startDoubleCtrlDListener(handler: () => void): void {
 
   pollTimer = setInterval(() => {
     const dDown = isKeyDown(VK_D)
-    const ctrlHeld = isCtrlHeld()
+    const modifiersHeld = isCtrlAltHeld()
 
-    if (!ctrlHeld) {
+    if (!modifiersHeld) {
       lastDPressTime = 0
     }
 
-    if (dDown && !wasDDown && ctrlHeld && !hasBlockingModifiers()) {
+    if (dDown && !wasDDown && modifiersHeld && !hasBlockingModifiers()) {
       const now = Date.now()
 
       if (lastDPressTime > 0 && now - lastDPressTime <= DOUBLE_TAP_MS) {
         if (now - lastTriggerTime >= TRIGGER_COOLDOWN_MS) {
           lastTriggerTime = now
           lastDPressTime = 0
-          console.log('[TransL] double Ctrl+D detected')
+          console.log('[TransL] double Ctrl+Alt+D detected')
           onDoubleCtrlD?.()
         }
       } else {
@@ -66,7 +66,7 @@ export function startDoubleCtrlDListener(handler: () => void): void {
     wasDDown = dDown
   }, POLL_INTERVAL_MS)
 
-  console.log('[TransL] Ctrl+D keyboard listener started')
+  console.log('[TransL] Ctrl+Alt+D keyboard listener started')
 }
 
 export function stopDoubleCtrlDListener(): void {
