@@ -7,9 +7,12 @@ import {
 } from 'electron'
 import { join } from 'path'
 import { getTextFromClipboard } from './services/clipboard-text'
+import { copySelectedTextFromTarget } from './services/copy-selection'
 import { startDoubleCopyListener, stopDoubleCopyListener } from './services/double-copy'
+import { startDoubleCtrlDListener, stopDoubleCtrlDListener } from './services/double-ctrl-d'
 import { detectTranslationDirection } from './services/language'
 import { pasteTranslation } from './services/paste'
+import { restoreClipboardText } from './services/clipboard'
 import { createTranslationProvider } from './services/translation'
 import type { RetoneOption, TranslationTone } from './services/config'
 import { getSettings, saveSettings, applyStoredAutoLaunch } from './services/settings-store'
@@ -216,6 +219,34 @@ async function handleRetone(original: string, tone: RetoneOption): Promise<void>
   }
 }
 
+async function handleDoubleCtrlDTranslatePaste(): Promise<void> {
+  if (isTranslating) {
+    return
+  }
+
+  isTranslating = true
+  captureTargetWindow()
+  let clipboardBackup = ''
+
+  try {
+    const copied = await copySelectedTextFromTarget()
+    clipboardBackup = copied.clipboardBackup
+
+    const translation = await translateText(copied.text)
+    await pasteTranslation(translation)
+    restoreClipboardText(clipboardBackup)
+  } catch (error) {
+    if (clipboardBackup) {
+      restoreClipboardText(clipboardBackup)
+    }
+    const message = error instanceof Error ? error.message : String(error)
+    dialog.showErrorBox('翻譯貼上失敗', message)
+  } finally {
+    clearTargetWindow()
+    isTranslating = false
+  }
+}
+
 async function handlePasteTranslation(text: string): Promise<void> {
   suppressOverlayBlur = true
   hideOverlayWindow()
@@ -232,17 +263,20 @@ async function handlePasteTranslation(text: string): Promise<void> {
   }
 }
 
-function setupDoubleCopyListener(): void {
+function setupKeyboardListeners(): void {
   try {
     startDoubleCopyListener(() => {
       void handleDoubleCopyTranslate()
+    })
+    startDoubleCtrlDListener(() => {
+      void handleDoubleCtrlDTranslatePaste()
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     console.error('[TransL] keyboard listener failed:', message)
     dialog.showErrorBox(
-      '剪貼簿監聽啟動失敗',
-      `無法啟動剪貼簿監聽，雙擊 Ctrl+C 翻譯功能將無法使用。\n\n${message}`
+      '快捷鍵監聽啟動失敗',
+      `無法啟動快捷鍵監聽，部分功能將無法使用。\n\n${message}`
     )
   }
 }
@@ -278,16 +312,19 @@ function setupApp(): void {
       createSettingsWindow()
     },
     onReloadListener: () => {
-      setupDoubleCopyListener()
-      showTrayBalloon('TransL', '剪貼簿監聽已重新載入')
+      setupKeyboardListeners()
+      showTrayBalloon('TransL', '快捷鍵監聽已重新載入')
     },
     onQuit: () => {
       app.quit()
     }
   })
 
-  setupDoubleCopyListener()
-  showTrayBalloon('TransL 已啟動', '選取文字後，0.8 秒內連按兩次 Ctrl+C 即可翻譯')
+  setupKeyboardListeners()
+  showTrayBalloon(
+    'TransL 已啟動',
+    'Ctrl 雙擊 C：翻譯浮動窗｜Ctrl 雙擊 D：翻譯並直接貼上'
+  )
 }
 
 const gotTheLock = app.requestSingleInstanceLock()
@@ -315,6 +352,7 @@ if (!gotTheLock) {
 
   app.on('will-quit', () => {
     stopDoubleCopyListener()
+    stopDoubleCtrlDListener()
     destroyTray()
   })
 

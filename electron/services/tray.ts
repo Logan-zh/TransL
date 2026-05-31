@@ -24,7 +24,7 @@ export function createTray(handlers: TrayHandlers): Tray {
   }
 
   tray = new Tray(getTrayIcon())
-  tray.setToolTip('TransL — 按住 Ctrl 在 0.8 秒內連按兩次 C')
+  tray.setToolTip('TransL — Ctrl 雙擊 C 翻譯 · Ctrl 雙擊 D 翻譯貼上')
 
   const contextMenu = Menu.buildFromTemplate([
     {

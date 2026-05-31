@@ -4,6 +4,19 @@
 
 格式以 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.1.0/) 為參考，版本號遵循 [語意化版本](https://semver.org/lang/zh-TW/)。
 
+## [1.2.0] - 2026-05-31
+
+### 新增
+
+- **Ctrl 雙擊 D**：框選文字後直接翻譯並貼上，不顯示浮動窗
+- 透過 Windows `GetAsyncKeyState` 偵測 Ctrl+D 雙擊（0.8 秒內）
+
+### 變更
+
+- 啟動提示與系統匣 tooltip 更新為雙快捷鍵說明
+
+---
+
 ## [1.1.0] - 2026-05-31
 
 ### 新增
