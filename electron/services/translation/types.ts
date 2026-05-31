@@ -1,8 +1,18 @@
 import { TranslationDirection, TranslationTone } from '../config'
 
+export interface TextOverlayBlock {
+  original: string
+  translation: string
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 export interface ImageTranslationResult {
   original: string
   translation: string
+  blocks: TextOverlayBlock[]
 }
 
 export interface TranslationProvider {
@@ -68,10 +78,53 @@ export function buildImageTranslationPrompt(tone: TranslationTone = 'default'): 
   return `Look at this screenshot and:
 1. Extract ALL visible text exactly as it appears, preserving line breaks and blank lines.
 2. Translate the text: if it contains Chinese characters, translate to English; otherwise translate to Traditional Chinese (zh-TW).
-3. Preserve the same line breaks and paragraph structure in both original and translation.${toneSuffix}
+3. Preserve the same line breaks and paragraph structure in both original and translation.
+4. For each visible text line or paragraph, estimate its bounding box on the image using normalized coordinates from 0 to 1 (relative to image width/height).${toneSuffix}
 
 Return ONLY valid JSON with this exact shape, no markdown fences:
-{"original":"...","translation":"..."}`
+{"original":"...","translation":"...","blocks":[{"original":"...","translation":"...","x":0.1,"y":0.2,"width":0.5,"height":0.08}]}
+
+Rules for blocks:
+- One block per text line or short paragraph that appears in the image.
+- x,y = top-left corner; width,height = box size; all values between 0 and 1.
+- Each block must include its own original and translation text.
+- blocks must cover the main visible text regions in reading order.`
+}
+
+function parseBlocks(raw: unknown): TextOverlayBlock[] {
+  if (!Array.isArray(raw)) {
+    return []
+  }
+
+  const blocks: TextOverlayBlock[] = []
+
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') {
+      continue
+    }
+
+    const block = item as Partial<TextOverlayBlock>
+    if (
+      typeof block.x !== 'number' ||
+      typeof block.y !== 'number' ||
+      typeof block.width !== 'number' ||
+      typeof block.height !== 'number' ||
+      !block.translation?.trim()
+    ) {
+      continue
+    }
+
+    blocks.push({
+      original: block.original?.trim() ?? '',
+      translation: block.translation.trim(),
+      x: block.x,
+      y: block.y,
+      width: block.width,
+      height: block.height
+    })
+  }
+
+  return blocks
 }
 
 export function parseImageTranslationResponse(raw: string): ImageTranslationResult {
@@ -81,13 +134,28 @@ export function parseImageTranslationResponse(raw: string): ImageTranslationResu
     text = jsonMatch[0]
   }
 
-  const parsed = JSON.parse(text) as Partial<ImageTranslationResult>
+  const parsed = JSON.parse(text) as Partial<ImageTranslationResult> & { blocks?: unknown }
   if (!parsed.original?.trim() || !parsed.translation?.trim()) {
     throw new Error('Vision API 未回傳有效的原文與譯文。')
   }
 
+  let blocks = parseBlocks(parsed.blocks)
+  if (blocks.length === 0) {
+    blocks = [
+      {
+        original: parsed.original.trim(),
+        translation: parsed.translation.trim(),
+        x: 0.04,
+        y: 0.1,
+        width: 0.92,
+        height: 0.8
+      }
+    ]
+  }
+
   return {
     original: parsed.original.trim(),
-    translation: parsed.translation.trim()
+    translation: parsed.translation.trim(),
+    blocks
   }
 }

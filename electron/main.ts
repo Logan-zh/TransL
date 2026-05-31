@@ -17,6 +17,11 @@ import { pasteTranslation } from './services/paste'
 import { restoreClipboardText } from './services/clipboard'
 import { captureScreenRegion } from './services/screen-capture'
 import {
+  assignTranslationToBlocks,
+  compositeTranslationOnImage
+} from './services/image-overlay'
+import type { TextOverlayBlock } from './services/translation/types'
+import {
   cancelScreenshotPicker,
   completeScreenshotPicker,
   openScreenshotPicker
@@ -38,6 +43,20 @@ let settingsWindow: BrowserWindow | null = null
 let isTranslating = false
 let suppressOverlayBlur = false
 let lastOverlayImageDataUrl: string | undefined
+let lastScreenshotNativeImage: Electron.NativeImage | null = null
+let lastImageBlockLayout: TextOverlayBlock[] | null = null
+
+async function buildScreenshotDisplayImage(
+  sourceImage: Electron.NativeImage,
+  blocks: TextOverlayBlock[]
+): Promise<Electron.NativeImage> {
+  try {
+    return await compositeTranslationOnImage(sourceImage, blocks)
+  } catch (error) {
+    console.error('[TransL] image overlay failed:', error)
+    return sourceImage
+  }
+}
 
 function getOverlayPosition(): { x: number; y: number } {
   const cursor = screen.getCursorScreenPoint()
@@ -202,6 +221,8 @@ async function handleDoubleCopyTranslate(): Promise<void> {
   isTranslating = true
   captureTargetWindow()
   lastOverlayImageDataUrl = undefined
+  lastScreenshotNativeImage = null
+  lastImageBlockLayout = null
   showOverlayLoading('')
 
   try {
@@ -228,6 +249,18 @@ async function handleRetone(original: string, tone: RetoneOption): Promise<void>
 
   try {
     const translation = await translateText(original, tone)
+
+    if (lastScreenshotNativeImage && lastImageBlockLayout) {
+      const blocks = assignTranslationToBlocks(
+        lastImageBlockLayout.map((block) => ({ ...block, translation: '' })),
+        translation
+      )
+      const composited = await buildScreenshotDisplayImage(lastScreenshotNativeImage, blocks)
+      clipboard.writeImage(composited)
+      showOverlayResult(original, translation, composited.toDataURL())
+      return
+    }
+
     showOverlayResult(original, translation)
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -290,9 +323,15 @@ async function handleScreenshotTranslate(): Promise<void> {
 
     const settings = getSettings()
     const provider = createTranslationProvider(settings)
-    const { original, translation } = await provider.translateImage(image)
+    const result = await provider.translateImage(image)
 
-    showOverlayResult(original, translation, image.toDataURL())
+    lastScreenshotNativeImage = image
+    lastImageBlockLayout = result.blocks
+
+    const composited = await buildScreenshotDisplayImage(image, result.blocks)
+    clipboard.writeImage(composited)
+
+    showOverlayResult(result.original, result.translation, composited.toDataURL())
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     showOverlayError(message)
