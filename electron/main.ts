@@ -10,7 +10,7 @@ import { getTextFromClipboard } from './services/clipboard-text'
 import { startDoubleCopyListener, stopDoubleCopyListener } from './services/double-copy'
 import { detectTranslationDirection } from './services/language'
 import { createTranslationProvider } from './services/translation'
-import { getSettings, saveSettings } from './services/settings-store'
+import { getSettings, saveSettings, applyStoredAutoLaunch } from './services/settings-store'
 import { createTray, destroyTray, showTrayBalloon } from './services/tray'
 import { getAppIconPath } from './services/icon-path'
 
@@ -243,6 +243,7 @@ if (!gotTheLock) {
   })
 
   app.whenReady().then(() => {
+    applyStoredAutoLaunch()
     setupApp()
 
     const settings = getSettings()

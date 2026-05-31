@@ -7,6 +7,7 @@ export interface AppSettings {
   geminiApiKey: string
   openaiModel: string
   geminiModel: string
+  openAtLogin: boolean
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -14,7 +15,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   openaiApiKey: '',
   geminiApiKey: '',
   openaiModel: 'gpt-4o-mini',
-  geminiModel: 'gemini-2.0-flash'
+  geminiModel: 'gemini-2.0-flash',
+  openAtLogin: false
 }
 
 export interface TranslateResultPayload {

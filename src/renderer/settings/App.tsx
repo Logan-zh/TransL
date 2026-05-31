@@ -8,6 +8,7 @@ interface SettingsForm {
   geminiApiKey: string
   openaiModel: string
   geminiModel: string
+  openAtLogin: boolean
 }
 
 export default function App(): JSX.Element {
@@ -121,6 +122,19 @@ export default function App(): JSX.Element {
             </section>
           </>
         )}
+
+        <section className="settings-section settings-checkbox-row">
+          <label htmlFor="openAtLogin" className="settings-checkbox-label">
+            <input
+              id="openAtLogin"
+              type="checkbox"
+              checked={form.openAtLogin}
+              onChange={(e) => updateField('openAtLogin', e.target.checked)}
+            />
+            <span>開機時自動啟動</span>
+          </label>
+          <p className="settings-hint">啟用後，Windows 登入時會在背景常駐系統匣。</p>
+        </section>
 
         <button type="submit" className="settings-save" disabled={saving}>
           {saving ? '儲存中…' : '儲存設定'}

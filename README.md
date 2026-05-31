@@ -48,6 +48,7 @@ npm run dist:win
 | Provider | OpenAI 或 Gemini | OpenAI |
 | OpenAI Model | Chat Completions 模型 | gpt-4o-mini |
 | Gemini Model | Generate Content 模型 | gemini-2.0-flash |
+| 開機自動啟動 | 登入 Windows 後常駐系統匣 | 關閉 |
 
 API Key 儲存於本機使用者目錄（electron-store），不會寫入專案檔案。
 
