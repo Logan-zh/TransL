@@ -4,6 +4,15 @@
 
 格式以 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.1.0/) 為參考，版本號遵循 [語意化版本](https://semver.org/lang/zh-TW/)。
 
+## [1.2.2] - 2026-05-31
+
+### 變更
+
+- Ctrl 雙擊 C 浮動窗：原文與譯文 **保留換行與段落排版**，方便逐行閱讀對照
+- 翻譯 prompt 要求 AI 維持原文的行距與空行結構
+
+---
+
 ## [1.2.1] - 2026-05-31
 
 ### 修復
