@@ -9,18 +9,22 @@ import { join } from 'path'
 import { getTextFromClipboard } from './services/clipboard-text'
 import { startDoubleCopyListener, stopDoubleCopyListener } from './services/double-copy'
 import { detectTranslationDirection } from './services/language'
+import { pasteTranslation } from './services/paste'
 import { createTranslationProvider } from './services/translation'
+import type { RetoneOption, TranslationTone } from './services/config'
 import { getSettings, saveSettings, applyStoredAutoLaunch } from './services/settings-store'
 import { createTray, destroyTray, showTrayBalloon } from './services/tray'
 import { getAppIconPath } from './services/icon-path'
+import { captureTargetWindow, clearTargetWindow } from './services/window-focus'
 
 const OVERLAY_WIDTH = 420
-const OVERLAY_MAX_HEIGHT = 320
+const OVERLAY_MAX_HEIGHT = 380
 const CURSOR_OFFSET = 16
 
 let overlayWindow: BrowserWindow | null = null
 let settingsWindow: BrowserWindow | null = null
 let isTranslating = false
+let suppressOverlayBlur = false
 
 function getOverlayPosition(): { x: number; y: number } {
   const cursor = screen.getCursorScreenPoint()
@@ -78,6 +82,9 @@ function createOverlayWindow(): BrowserWindow {
   }
 
   overlayWindow.on('blur', () => {
+    if (suppressOverlayBlur) {
+      return
+    }
     hideOverlayWindow()
   })
 
@@ -132,12 +139,15 @@ function hideOverlayWindow(): void {
   }
 }
 
-function showOverlayLoading(original: string): void {
+function showOverlayLoading(original: string, message?: string, reposition = true): void {
   const win = createOverlayWindow()
-  const { x, y } = getOverlayPosition()
 
-  win.setBounds({ x, y, width: OVERLAY_WIDTH, height: OVERLAY_MAX_HEIGHT })
-  win.webContents.send('translate:loading', { original })
+  if (reposition || !win.isVisible()) {
+    const { x, y } = getOverlayPosition()
+    win.setBounds({ x, y, width: OVERLAY_WIDTH, height: OVERLAY_MAX_HEIGHT })
+  }
+
+  win.webContents.send('translate:loading', { original, message })
 
   if (win.isVisible()) {
     win.focus()
@@ -157,29 +167,68 @@ function showOverlayError(message: string): void {
   win.webContents.send('translate:error', { message })
 }
 
+async function translateText(original: string, tone: TranslationTone = 'default'): Promise<string> {
+  const direction = detectTranslationDirection(original)
+  const settings = getSettings()
+  const provider = createTranslationProvider(settings)
+  return provider.translate(original, direction, tone)
+}
+
 async function handleDoubleCopyTranslate(): Promise<void> {
   if (isTranslating) {
     return
   }
 
   isTranslating = true
+  captureTargetWindow()
   showOverlayLoading('')
 
   try {
     const selectedText = await getTextFromClipboard()
     showOverlayLoading(selectedText)
 
-    const direction = detectTranslationDirection(selectedText)
-    const settings = getSettings()
-    const provider = createTranslationProvider(settings)
-    const translation = await provider.translate(selectedText, direction)
-
+    const translation = await translateText(selectedText)
     showOverlayResult(selectedText, translation)
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     showOverlayError(message)
   } finally {
     isTranslating = false
+  }
+}
+
+async function handleRetone(original: string, tone: RetoneOption): Promise<void> {
+  if (isTranslating) {
+    return
+  }
+
+  isTranslating = true
+  showOverlayLoading(original, '調整語氣中…', false)
+
+  try {
+    const translation = await translateText(original, tone)
+    showOverlayResult(original, translation)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    showOverlayError(message)
+  } finally {
+    isTranslating = false
+  }
+}
+
+async function handlePasteTranslation(text: string): Promise<void> {
+  suppressOverlayBlur = true
+  hideOverlayWindow()
+  await new Promise((resolve) => setTimeout(resolve, 100))
+
+  try {
+    await pasteTranslation(text)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    dialog.showErrorBox('貼上失敗', message)
+  } finally {
+    suppressOverlayBlur = false
+    clearTargetWindow()
   }
 }
 
@@ -201,6 +250,14 @@ function setupDoubleCopyListener(): void {
 function setupIpc(): void {
   ipcMain.on('overlay:close', () => {
     hideOverlayWindow()
+  })
+
+  ipcMain.handle('overlay:paste', async (_event, text: string) => {
+    await handlePasteTranslation(text)
+  })
+
+  ipcMain.handle('overlay:retone', async (_event, payload: { original: string; tone: RetoneOption }) => {
+    await handleRetone(payload.original, payload.tone)
   })
 
   ipcMain.handle('settings:get', () => getSettings())

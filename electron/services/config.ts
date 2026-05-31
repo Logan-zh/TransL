@@ -1,5 +1,7 @@
 export type TranslationProviderId = 'openai' | 'gemini'
 export type TranslationDirection = 'en-to-zh' | 'zh-to-en'
+export type TranslationTone = 'default' | 'colloquial' | 'professional'
+export type RetoneOption = 'colloquial' | 'professional'
 
 export interface AppSettings {
   provider: TranslationProviderId
@@ -30,4 +32,10 @@ export interface TranslateErrorPayload {
 
 export interface TranslateLoadingPayload {
   original: string
+  message?: string
+}
+
+export interface RetonePayload {
+  original: string
+  tone: RetoneOption
 }
