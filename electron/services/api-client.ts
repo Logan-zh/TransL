@@ -22,7 +22,7 @@ function getBaseUrl(): string {
   return getApiBaseUrl()
 }
 
-async function parseError(response: Response): Promise<ApiError> {
+async function parseError(response: Response, requestUrl: string): Promise<ApiError> {
   const body = (await response.json().catch(() => ({}))) as {
     message?: string | string[] | { code?: string; message?: string }
     code?: string
@@ -31,7 +31,7 @@ async function parseError(response: Response): Promise<ApiError> {
   if (typeof body.message === 'object' && body.message !== null && !Array.isArray(body.message)) {
     const nested = body.message
     return new ApiError(
-      nested.message ?? '請求失敗',
+      formatErrorMessage(nested.message ?? '請求失敗', response.status, requestUrl),
       nested.code,
       response.status
     )
@@ -40,7 +40,14 @@ async function parseError(response: Response): Promise<ApiError> {
   const message = Array.isArray(body.message)
     ? body.message.join(', ')
     : body.message ?? `HTTP ${response.status}`
-  return new ApiError(message, body.code, response.status)
+  return new ApiError(formatErrorMessage(message, response.status, requestUrl), body.code, response.status)
+}
+
+function formatErrorMessage(message: string, status: number, requestUrl: string): string {
+  if (status === 404) {
+    return `${message}（${requestUrl}）— 請確認 TRANSL_API_URL 指向 NestJS API（:3000），且 nginx 有轉發 /api/`
+  }
+  return message
 }
 
 async function request<T>(
@@ -57,7 +64,8 @@ async function request<T>(
     headers.Authorization = `Bearer ${tokens.accessToken}`
   }
 
-  const response = await fetch(`${getBaseUrl()}${path}`, {
+  const url = `${getBaseUrl()}${path}`
+  const response = await fetch(url, {
     ...options,
     headers
   })
@@ -68,7 +76,7 @@ async function request<T>(
   }
 
   if (!response.ok) {
-    throw await parseError(response)
+    throw await parseError(response, url)
   }
 
   return response.json() as Promise<T>

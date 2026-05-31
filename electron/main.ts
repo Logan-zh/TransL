@@ -1,3 +1,6 @@
+import { config as loadDotenv } from 'dotenv'
+import { existsSync } from 'fs'
+import { join } from 'path'
 import {
   app,
   BrowserWindow,
@@ -6,7 +9,13 @@ import {
   screen,
   dialog
 } from 'electron'
-import { join } from 'path'
+
+for (const envPath of [join(process.cwd(), '.env'), join(__dirname, '../../.env')]) {
+  if (existsSync(envPath)) {
+    loadDotenv({ path: envPath })
+    break
+  }
+}
 import { getTextFromClipboard } from './services/clipboard-text'
 import { copySelectedTextFromTarget } from './services/copy-selection'
 import { startDoubleCopyListener, stopDoubleCopyListener, setDoubleCopySuppressed } from './services/double-copy'
