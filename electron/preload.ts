@@ -1,7 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
   AppSettings,
+  CaptureInitPayload,
   RetoneOption,
+  ScreenRect,
   TranslateErrorPayload,
   TranslateLoadingPayload,
   TranslateResultPayload
@@ -16,6 +18,9 @@ export interface ElectronAPI {
   retoneTranslation: (original: string, tone: RetoneOption) => Promise<void>
   getSettings: () => Promise<AppSettings>
   saveSettings: (settings: Partial<AppSettings>) => Promise<AppSettings>
+  onCaptureInit: (callback: (payload: CaptureInitPayload) => void) => () => void
+  completeCapture: (bounds: ScreenRect) => void
+  cancelCapture: () => void
 }
 
 const api: ElectronAPI = {
@@ -46,7 +51,20 @@ const api: ElectronAPI = {
   pasteTranslation: (text) => ipcRenderer.invoke('overlay:paste', text),
   retoneTranslation: (original, tone) => ipcRenderer.invoke('overlay:retone', { original, tone }),
   getSettings: () => ipcRenderer.invoke('settings:get'),
-  saveSettings: (settings) => ipcRenderer.invoke('settings:save', settings)
+  saveSettings: (settings) => ipcRenderer.invoke('settings:save', settings),
+  onCaptureInit: (callback) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: CaptureInitPayload): void => {
+      callback(payload)
+    }
+    ipcRenderer.on('capture:init', listener)
+    return () => ipcRenderer.removeListener('capture:init', listener)
+  },
+  completeCapture: (bounds) => {
+    ipcRenderer.send('capture:complete', bounds)
+  },
+  cancelCapture: () => {
+    ipcRenderer.send('capture:cancel')
+  }
 }
 
 contextBridge.exposeInMainWorld('electronAPI', api)

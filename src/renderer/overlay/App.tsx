@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 type OverlayState =
   | { status: 'idle' }
   | { status: 'loading'; original: string; message?: string }
-  | { status: 'success'; original: string; translation: string }
+  | { status: 'success'; original: string; translation: string; imageDataUrl?: string }
   | { status: 'error'; message: string }
 
 const MAX_ORIGINAL_PREVIEW = 200
@@ -30,7 +30,8 @@ export default function App(): JSX.Element {
       setState({
         status: 'success',
         original: payload.original,
-        translation: payload.translation
+        translation: payload.translation,
+        imageDataUrl: payload.imageDataUrl
       })
     })
 
@@ -124,10 +125,23 @@ export default function App(): JSX.Element {
 
       {state.status === 'success' && (
         <>
-          <div className="overlay-body">
-            <p className="overlay-original">{truncate(state.original, MAX_ORIGINAL_PREVIEW)}</p>
+          <div className={`overlay-body${state.imageDataUrl ? ' overlay-body-screenshot' : ''}`}>
+            {state.imageDataUrl && (
+              <img
+                className="overlay-screenshot"
+                src={state.imageDataUrl}
+                alt="截圖預覽"
+              />
+            )}
+            <p className="overlay-original">
+              {state.imageDataUrl ? state.original : truncate(state.original, MAX_ORIGINAL_PREVIEW)}
+            </p>
             <p className="overlay-translation">{state.translation}</p>
           </div>
+
+          {state.imageDataUrl && (
+            <div className="overlay-clipboard-note">截圖已複製到剪貼簿</div>
+          )}
 
           <div className="overlay-actions">
             <button

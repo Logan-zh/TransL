@@ -22,7 +22,7 @@ body,
 .overlay-card {
   width: 100%;
   min-height: 80px;
-  max-height: 360px;
+  max-height: 440px;
   margin: 8px;
   padding: 12px 14px;
   border-radius: 12px;
@@ -70,6 +70,24 @@ body,
   gap: 8px;
   overflow-y: auto;
   max-height: 260px;
+}
+
+.overlay-body-screenshot {
+  max-height: 300px;
+}
+
+.overlay-screenshot {
+  width: 100%;
+  max-height: 120px;
+  object-fit: contain;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.overlay-clipboard-note {
+  font-size: 11px;
+  color: #8ab4ff;
 }
 
 .overlay-spinner {

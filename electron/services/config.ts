@@ -24,6 +24,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 export interface TranslateResultPayload {
   original: string
   translation: string
+  imageDataUrl?: string
 }
 
 export interface TranslateErrorPayload {
@@ -38,4 +39,16 @@ export interface TranslateLoadingPayload {
 export interface RetonePayload {
   original: string
   tone: RetoneOption
+}
+
+export interface CaptureInitPayload {
+  offsetX: number
+  offsetY: number
+}
+
+export interface ScreenRect {
+  x: number
+  y: number
+  width: number
+  height: number
 }

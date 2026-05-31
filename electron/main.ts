@@ -1,6 +1,7 @@
 import {
   app,
   BrowserWindow,
+  clipboard,
   ipcMain,
   screen,
   dialog
@@ -10,9 +11,17 @@ import { getTextFromClipboard } from './services/clipboard-text'
 import { copySelectedTextFromTarget } from './services/copy-selection'
 import { startDoubleCopyListener, stopDoubleCopyListener, setDoubleCopySuppressed } from './services/double-copy'
 import { startDoubleCtrlDListener, stopDoubleCtrlDListener } from './services/double-ctrl-d'
+import { startDoubleCtrlAltSListener, stopDoubleCtrlAltSListener } from './services/double-ctrl-alt-s'
 import { detectTranslationDirection } from './services/language'
 import { pasteTranslation } from './services/paste'
 import { restoreClipboardText } from './services/clipboard'
+import { captureScreenRegion } from './services/screen-capture'
+import {
+  cancelScreenshotPicker,
+  completeScreenshotPicker,
+  openScreenshotPicker
+} from './services/screenshot-picker'
+import type { ScreenRect } from './services/config'
 import { createTranslationProvider } from './services/translation'
 import type { RetoneOption, TranslationTone } from './services/config'
 import { getSettings, saveSettings, applyStoredAutoLaunch } from './services/settings-store'
@@ -21,13 +30,14 @@ import { getAppIconPath } from './services/icon-path'
 import { captureTargetWindow, clearTargetWindow } from './services/window-focus'
 
 const OVERLAY_WIDTH = 420
-const OVERLAY_MAX_HEIGHT = 380
+const OVERLAY_MAX_HEIGHT = 460
 const CURSOR_OFFSET = 16
 
 let overlayWindow: BrowserWindow | null = null
 let settingsWindow: BrowserWindow | null = null
 let isTranslating = false
 let suppressOverlayBlur = false
+let lastOverlayImageDataUrl: string | undefined
 
 function getOverlayPosition(): { x: number; y: number } {
   const cursor = screen.getCursorScreenPoint()
@@ -160,9 +170,16 @@ function showOverlayLoading(original: string, message?: string, reposition = tru
   }
 }
 
-function showOverlayResult(original: string, translation: string): void {
+function showOverlayResult(original: string, translation: string, imageDataUrl?: string): void {
+  if (imageDataUrl !== undefined) {
+    lastOverlayImageDataUrl = imageDataUrl
+  }
   const win = createOverlayWindow()
-  win.webContents.send('translate:result', { original, translation })
+  win.webContents.send('translate:result', {
+    original,
+    translation,
+    imageDataUrl: imageDataUrl ?? lastOverlayImageDataUrl
+  })
 }
 
 function showOverlayError(message: string): void {
@@ -184,6 +201,7 @@ async function handleDoubleCopyTranslate(): Promise<void> {
 
   isTranslating = true
   captureTargetWindow()
+  lastOverlayImageDataUrl = undefined
   showOverlayLoading('')
 
   try {
@@ -249,6 +267,41 @@ async function handleDoubleCtrlDTranslatePaste(): Promise<void> {
   }
 }
 
+async function handleScreenshotTranslate(): Promise<void> {
+  if (isTranslating) {
+    return
+  }
+
+  hideOverlayWindow()
+
+  const bounds = await openScreenshotPicker()
+  if (!bounds || bounds.width < 10 || bounds.height < 10) {
+    return
+  }
+
+  isTranslating = true
+  setDoubleCopySuppressed(true)
+
+  try {
+    const image = await captureScreenRegion(bounds)
+    clipboard.writeImage(image)
+
+    showOverlayLoading('', '辨識並翻譯圖片中…')
+
+    const settings = getSettings()
+    const provider = createTranslationProvider(settings)
+    const { original, translation } = await provider.translateImage(image)
+
+    showOverlayResult(original, translation, image.toDataURL())
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    showOverlayError(message)
+  } finally {
+    setDoubleCopySuppressed(false)
+    isTranslating = false
+  }
+}
+
 async function handlePasteTranslation(text: string): Promise<void> {
   suppressOverlayBlur = true
   hideOverlayWindow()
@@ -272,6 +325,9 @@ function setupKeyboardListeners(): void {
     })
     startDoubleCtrlDListener(() => {
       void handleDoubleCtrlDTranslatePaste()
+    })
+    startDoubleCtrlAltSListener(() => {
+      void handleScreenshotTranslate()
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -301,6 +357,14 @@ function setupIpc(): void {
   ipcMain.handle('settings:save', (_event, partial) => {
     return saveSettings(partial)
   })
+
+  ipcMain.on('capture:complete', (_event, bounds: ScreenRect) => {
+    completeScreenshotPicker(bounds)
+  })
+
+  ipcMain.on('capture:cancel', () => {
+    cancelScreenshotPicker()
+  })
 }
 
 function setupApp(): void {
@@ -325,7 +389,7 @@ function setupApp(): void {
   setupKeyboardListeners()
   showTrayBalloon(
     'TransL 已啟動',
-    'Ctrl 雙擊 C：翻譯浮動窗｜Ctrl 雙擊 D：翻譯並直接貼上'
+    'Ctrl 雙擊 C：翻譯｜Ctrl 雙擊 D：翻譯貼上｜Ctrl+Alt 雙擊 S：截圖翻譯'
   )
 }
 
@@ -355,6 +419,8 @@ if (!gotTheLock) {
   app.on('will-quit', () => {
     stopDoubleCopyListener()
     stopDoubleCtrlDListener()
+    stopDoubleCtrlAltSListener()
+    cancelScreenshotPicker()
     destroyTray()
   })
 
