@@ -25,7 +25,7 @@ export function createTray(handlers: TrayHandlers): Tray {
   }
 
   tray = new Tray(getTrayIcon())
-  tray.setToolTip('TransL — Ctrl 雙擊 C 翻譯 · Ctrl+Alt 雙擊 D 翻譯貼上 · Ctrl+Alt 雙擊 S 截圖翻譯')
+  tray.setToolTip('TransL — 可在設定中自訂快捷鍵')
 
   const contextMenu = Menu.buildFromTemplate([
     {

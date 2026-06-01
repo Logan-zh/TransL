@@ -19,8 +19,8 @@ for (const envPath of [join(process.cwd(), '.env'), join(__dirname, '../../.env'
 import { getTextFromClipboard } from './services/clipboard-text'
 import { copySelectedTextFromTarget } from './services/copy-selection'
 import { startDoubleCopyListener, stopDoubleCopyListener, setDoubleCopySuppressed } from './services/double-copy'
-import { startDoubleCtrlDListener, stopDoubleCtrlDListener } from './services/double-ctrl-d'
-import { startDoubleCtrlAltSListener, stopDoubleCtrlAltSListener } from './services/double-ctrl-alt-s'
+import { captureHotkeyBinding } from './services/hotkey-capture'
+import { applyHotkeys, stopAllHotkeys, validateHotkeys } from './services/hotkey-manager'
 import { detectTranslationDirection } from './services/language'
 import { pasteTranslation } from './services/paste'
 import { restoreClipboardText } from './services/clipboard'
@@ -37,14 +37,16 @@ import {
 } from './services/screenshot-picker'
 import type { ScreenRect } from './services/config'
 import { createTranslationProvider } from './services/translation'
-import type { RetoneOption, TranslationTone } from './services/config'
+import type { OverlayMode, RetoneOption, TranslationTone } from './services/config'
 import { getSettings, saveSettings, applyStoredAutoLaunch, hasLegacyApiKeys } from './services/settings-store'
+import { DEFAULT_HOTKEYS } from './services/config'
 import { isAccessTokenValid } from './services/auth-store'
 import {
   ensureAuthenticated,
   getProfile,
   login as apiLogin,
-  logout as apiLogout
+  logout as apiLogout,
+  suggestReplyApi
 } from './services/api-client'
 import { createTray, destroyTray, showTrayBalloon } from './services/tray'
 import { getAppIconPath } from './services/icon-path'
@@ -191,8 +193,8 @@ function createSettingsWindow(): BrowserWindow {
   }
 
   settingsWindow = new BrowserWindow({
-    width: 520,
-    height: 520,
+    width: 560,
+    height: 720,
     show: false,
     autoHideMenuBar: true,
     title: 'TransL 設定',
@@ -228,7 +230,12 @@ function hideOverlayWindow(): void {
   }
 }
 
-function showOverlayLoading(original: string, message?: string, reposition = true): void {
+function showOverlayLoading(
+  original: string,
+  message?: string,
+  reposition = true,
+  mode: OverlayMode = 'translate'
+): void {
   const win = createOverlayWindow()
 
   if (reposition || !win.isVisible()) {
@@ -236,7 +243,7 @@ function showOverlayLoading(original: string, message?: string, reposition = tru
     win.setBounds({ x, y, width: OVERLAY_WIDTH, height: OVERLAY_MAX_HEIGHT })
   }
 
-  win.webContents.send('translate:loading', { original, message })
+  win.webContents.send('translate:loading', { original, message, mode })
 
   if (win.isVisible()) {
     win.focus()
@@ -246,7 +253,12 @@ function showOverlayLoading(original: string, message?: string, reposition = tru
   }
 }
 
-function showOverlayResult(original: string, translation: string, imageDataUrl?: string): void {
+function showOverlayResult(
+  original: string,
+  translation: string,
+  imageDataUrl?: string,
+  mode: OverlayMode = 'translate'
+): void {
   if (imageDataUrl !== undefined) {
     lastOverlayImageDataUrl = imageDataUrl
   }
@@ -254,7 +266,8 @@ function showOverlayResult(original: string, translation: string, imageDataUrl?:
   win.webContents.send('translate:result', {
     original,
     translation,
-    imageDataUrl: imageDataUrl ?? lastOverlayImageDataUrl
+    imageDataUrl: imageDataUrl ?? lastOverlayImageDataUrl,
+    mode
   })
 }
 
@@ -323,6 +336,42 @@ async function handleRetone(original: string, tone: RetoneOption): Promise<void>
     const message = error instanceof Error ? error.message : String(error)
     showOverlayError(message)
   } finally {
+    isTranslating = false
+  }
+}
+
+async function handleDoubleCtrlQReplySuggest(): Promise<void> {
+  if (isTranslating) {
+    return
+  }
+
+  isTranslating = true
+  captureTargetWindow()
+  setDoubleCopySuppressed(true)
+  lastOverlayImageDataUrl = undefined
+  lastScreenshotNativeImage = null
+  lastImageBlockLayout = null
+  let clipboardBackup = ''
+
+  try {
+    const copied = await copySelectedTextFromTarget()
+    clipboardBackup = copied.clipboardBackup
+    restoreClipboardText(clipboardBackup)
+
+    showOverlayLoading(copied.text, '思考回覆中…', true, 'reply')
+
+    await ensureAuthenticated()
+    const suggestion = await suggestReplyApi(copied.text)
+    showOverlayResult(copied.text, suggestion, undefined, 'reply')
+  } catch (error) {
+    if (clipboardBackup) {
+      restoreClipboardText(clipboardBackup)
+    }
+    const message = error instanceof Error ? error.message : String(error)
+    showOverlayError(message)
+  } finally {
+    setDoubleCopySuppressed(false)
+    clearTargetWindow()
     isTranslating = false
   }
 }
@@ -416,14 +465,18 @@ async function handlePasteTranslation(text: string): Promise<void> {
 
 function setupKeyboardListeners(): void {
   try {
-    startDoubleCopyListener(() => {
-      void handleDoubleCopyTranslate()
-    })
-    startDoubleCtrlDListener(() => {
-      void handleDoubleCtrlDTranslatePaste()
-    })
-    startDoubleCtrlAltSListener(() => {
-      void handleScreenshotTranslate()
+    const hotkeys = getSettings().hotkeys
+    const conflict = validateHotkeys(hotkeys)
+    if (conflict) {
+      dialog.showErrorBox('快捷鍵設定無效', `${conflict}\n\n已改為預設快捷鍵。`)
+      saveSettings({ hotkeys: DEFAULT_HOTKEYS })
+    }
+
+    applyHotkeys(getSettings().hotkeys, {
+      translateOverlay: () => void handleDoubleCopyTranslate(),
+      translatePaste: () => void handleDoubleCtrlDTranslatePaste(),
+      replySuggest: () => void handleDoubleCtrlQReplySuggest(),
+      screenshotTranslate: () => void handleScreenshotTranslate()
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -451,7 +504,17 @@ function setupIpc(): void {
   ipcMain.handle('settings:get', () => getSettings())
 
   ipcMain.handle('settings:save', (_event, partial) => {
-    return saveSettings(partial)
+    const saved = saveSettings(partial)
+    const conflict = partial.hotkeys ? validateHotkeys(saved.hotkeys) : null
+    if (conflict) {
+      throw new Error(conflict)
+    }
+    setupKeyboardListeners()
+    return saved
+  })
+
+  ipcMain.handle('hotkey:capture', async () => {
+    return captureHotkeyBinding()
   })
 
   ipcMain.handle('auth:session', async () => {
@@ -522,7 +585,7 @@ function setupApp(): void {
   setupKeyboardListeners()
   showTrayBalloon(
     'TransL 已啟動',
-    'Ctrl 雙擊 C：翻譯｜Ctrl+Alt 雙擊 D：翻譯貼上｜Ctrl+Alt 雙擊 S：截圖翻譯'
+    '可在設定中自訂快捷鍵（翻譯、貼上、回覆建議、截圖翻譯）'
   )
 }
 
@@ -560,9 +623,7 @@ if (!gotTheLock) {
   })
 
   app.on('will-quit', () => {
-    stopDoubleCopyListener()
-    stopDoubleCtrlDListener()
-    stopDoubleCtrlAltSListener()
+    stopAllHotkeys()
     cancelScreenshotPicker()
     destroyTray()
   })

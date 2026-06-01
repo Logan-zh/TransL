@@ -1,13 +1,16 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
+  AppHotkeys,
   AppSettings,
   CaptureInitPayload,
+  HotkeyBinding,
   MemberProfile,
   RetoneOption,
   ScreenRect,
   SessionInfo,
   TranslateErrorPayload,
   TranslateLoadingPayload,
+  TranslateOverlayHotkey,
   TranslateResultPayload
 } from './services/config'
 
@@ -20,6 +23,7 @@ export interface ElectronAPI {
   retoneTranslation: (original: string, tone: RetoneOption) => Promise<void>
   getSettings: () => Promise<AppSettings>
   saveSettings: (settings: Partial<AppSettings>) => Promise<AppSettings>
+  captureHotkey: () => Promise<HotkeyBinding>
   getSession: () => Promise<SessionInfo>
   login: (payload: { username: string; password: string }) => Promise<MemberProfile>
   logout: () => Promise<void>
@@ -58,6 +62,7 @@ const api: ElectronAPI = {
   retoneTranslation: (original, tone) => ipcRenderer.invoke('overlay:retone', { original, tone }),
   getSettings: () => ipcRenderer.invoke('settings:get'),
   saveSettings: (settings) => ipcRenderer.invoke('settings:save', settings),
+  captureHotkey: () => ipcRenderer.invoke('hotkey:capture'),
   getSession: () => ipcRenderer.invoke('auth:session'),
   login: (payload) => ipcRenderer.invoke('auth:login', payload),
   logout: () => ipcRenderer.invoke('auth:logout'),

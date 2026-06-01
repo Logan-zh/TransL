@@ -1,10 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import ZoomableImage from './ZoomableImage'
 
+type OverlayMode = 'translate' | 'reply'
+
 type OverlayState =
   | { status: 'idle' }
-  | { status: 'loading'; original: string; message?: string }
-  | { status: 'success'; original: string; translation: string; imageDataUrl?: string }
+  | { status: 'loading'; original: string; message?: string; mode: OverlayMode }
+  | {
+      status: 'success'
+      original: string
+      translation: string
+      imageDataUrl?: string
+      mode: OverlayMode
+    }
   | { status: 'error'; message: string }
 
 const MAX_ORIGINAL_PREVIEW = 200
@@ -23,7 +31,12 @@ export default function App(): JSX.Element {
   useEffect(() => {
     const unsubLoading = window.electronAPI.onTranslateLoading((payload) => {
       setShowModifyMenu(false)
-      setState({ status: 'loading', original: payload.original, message: payload.message })
+      setState({
+        status: 'loading',
+        original: payload.original,
+        message: payload.message,
+        mode: payload.mode ?? 'translate'
+      })
     })
 
     const unsubResult = window.electronAPI.onTranslateResult((payload) => {
@@ -32,7 +45,8 @@ export default function App(): JSX.Element {
         status: 'success',
         original: payload.original,
         translation: payload.translation,
-        imageDataUrl: payload.imageDataUrl
+        imageDataUrl: payload.imageDataUrl,
+        mode: payload.mode ?? 'translate'
       })
     })
 
@@ -98,10 +112,13 @@ export default function App(): JSX.Element {
     return <div className="overlay-card overlay-hidden" />
   }
 
+  const mode = state.status === 'error' ? 'translate' : state.mode
+  const isReply = mode === 'reply'
+
   return (
-    <div className="overlay-card">
+    <div className={`overlay-card${isReply ? ' overlay-card-reply' : ''}`}>
       <div className="overlay-header">
-        <span className="overlay-title">TransL</span>
+        <span className="overlay-title">{isReply ? '回覆建議' : 'TransL'}</span>
         <button
           type="button"
           className="overlay-close"
@@ -116,28 +133,38 @@ export default function App(): JSX.Element {
         <div className="overlay-body">
           <div className="overlay-spinner" />
           <p className="overlay-status">
-            {state.message ?? (state.original ? '翻譯中…' : '讀取剪貼簿…')}
+            {state.message ??
+              (isReply ? '思考回覆中…' : state.original ? '翻譯中…' : '讀取剪貼簿…')}
           </p>
           {state.original && (
-            <p className="overlay-original">{truncate(state.original, MAX_ORIGINAL_PREVIEW)}</p>
+            <>
+              {isReply && <p className="overlay-section-label">對方訊息</p>}
+              <p className="overlay-original">{truncate(state.original, MAX_ORIGINAL_PREVIEW)}</p>
+            </>
           )}
         </div>
       )}
 
       {state.status === 'success' && (
         <>
-          {state.imageDataUrl && (
+          {!isReply && state.imageDataUrl && (
             <ZoomableImage src={state.imageDataUrl} alt="譯文圖預覽" />
           )}
 
-          <div className={`overlay-body${state.imageDataUrl ? ' overlay-body-with-image' : ''}`}>
+          <div
+            className={`overlay-body${state.imageDataUrl && !isReply ? ' overlay-body-with-image' : ''}${isReply ? ' overlay-body-reply' : ''}`}
+          >
+            <p className="overlay-section-label">{isReply ? '對方訊息' : '原文'}</p>
             <p className="overlay-original">
-              {state.imageDataUrl ? state.original : truncate(state.original, MAX_ORIGINAL_PREVIEW)}
+              {state.imageDataUrl && !isReply
+                ? state.original
+                : truncate(state.original, MAX_ORIGINAL_PREVIEW)}
             </p>
+            <p className="overlay-section-label">{isReply ? '建議回覆' : '譯文'}</p>
             <p className="overlay-translation">{state.translation}</p>
           </div>
 
-          {state.imageDataUrl && (
+          {!isReply && state.imageDataUrl && (
             <div className="overlay-clipboard-note">譯文圖已複製到剪貼簿（Ctrl+V 可貼上）</div>
           )}
 
@@ -151,26 +178,28 @@ export default function App(): JSX.Element {
               {isPasting ? '貼上中…' : '貼上'}
             </button>
 
-            <div className="overlay-modify" ref={modifyRef}>
-              <button
-                type="button"
-                className="overlay-action"
-                onClick={() => setShowModifyMenu((open) => !open)}
-              >
-                修改 ▾
-              </button>
+            {!isReply && (
+              <div className="overlay-modify" ref={modifyRef}>
+                <button
+                  type="button"
+                  className="overlay-action"
+                  onClick={() => setShowModifyMenu((open) => !open)}
+                >
+                  修改 ▾
+                </button>
 
-              {showModifyMenu && (
-                <div className="overlay-modify-menu">
-                  <button type="button" onClick={() => handleRetone('colloquial')}>
-                    更平易近人
-                  </button>
-                  <button type="button" onClick={() => handleRetone('professional')}>
-                    更專業
-                  </button>
-                </div>
-              )}
-            </div>
+                {showModifyMenu && (
+                  <div className="overlay-modify-menu">
+                    <button type="button" onClick={() => handleRetone('colloquial')}>
+                      更平易近人
+                    </button>
+                    <button type="button" onClick={() => handleRetone('professional')}>
+                      更專業
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </>
       )}

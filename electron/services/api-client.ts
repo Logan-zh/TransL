@@ -215,3 +215,12 @@ export async function retoneApi(
   })
   return result.translation
 }
+
+export async function suggestReplyApi(text: string): Promise<string> {
+  await ensureAuthenticated()
+  const result = await request<{ suggestion: string }>('/api/translate/reply-suggest', {
+    method: 'POST',
+    body: JSON.stringify({ text })
+  })
+  return result.suggestion
+}
