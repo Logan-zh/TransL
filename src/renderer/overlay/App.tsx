@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { cancelSpeech, speakText } from './speech'
+import { useOverlayDrag } from './useOverlayDrag'
 import ZoomableImage from './ZoomableImage'
 
 type OverlayMode = 'translate' | 'reply'
@@ -29,6 +30,7 @@ export default function App(): JSX.Element {
   const [isPasting, setIsPasting] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
   const modifyRef = useRef<HTMLDivElement>(null)
+  const { dragHandleProps } = useOverlayDrag()
 
   useEffect(() => {
     const unsubLoading = window.electronAPI.onTranslateLoading((payload) => {
@@ -133,7 +135,7 @@ export default function App(): JSX.Element {
 
   return (
     <div className={`overlay-card${isReply ? ' overlay-card-reply' : ''}`}>
-      <div className="overlay-header">
+      <div className="overlay-header overlay-drag-handle" {...dragHandleProps}>
         <span className="overlay-title">{isReply ? '回覆建議' : 'TransL'}</span>
         <button
           type="button"

@@ -45,6 +45,12 @@ body,
   justify-content: space-between;
 }
 
+.overlay-drag-handle {
+  cursor: move;
+  user-select: none;
+  touch-action: none;
+}
+
 .overlay-title {
   font-size: 12px;
   font-weight: 600;
@@ -61,6 +67,7 @@ body,
   line-height: 1;
   cursor: pointer;
   padding: 0 4px;
+  -webkit-app-region: no-drag;
 }
 
 .overlay-close:hover {
@@ -73,6 +80,7 @@ body,
   gap: 8px;
   overflow-y: auto;
   max-height: 260px;
+  -webkit-app-region: no-drag;
 }
 
 .overlay-body-with-image {
@@ -99,6 +107,7 @@ body,
   flex-direction: column;
   gap: 4px;
   flex-shrink: 0;
+  -webkit-app-region: no-drag;
 }
 
 .overlay-image-toolbar {
@@ -177,6 +186,7 @@ body,
 .overlay-clipboard-note {
   font-size: 11px;
   color: #8ab4ff;
+  -webkit-app-region: no-drag;
 }
 
 .overlay-spinner {
@@ -227,6 +237,7 @@ body,
   gap: 8px;
   align-items: flex-start;
   flex-wrap: wrap;
+  -webkit-app-region: no-drag;
 }
 
 .overlay-action {
@@ -295,4 +306,5 @@ body,
   font-size: 11px;
   color: #666;
   text-align: right;
+  -webkit-app-region: no-drag;
 }

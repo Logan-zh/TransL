@@ -33,8 +33,13 @@ import type { TextOverlayBlock } from './services/translation/types'
 import {
   cancelScreenshotPicker,
   completeScreenshotPicker,
+  isScreenshotPickerOpen,
   openScreenshotPicker
 } from './services/screenshot-picker'
+import {
+  startSelectionListener,
+  stopSelectionListener
+} from './services/selection-listener'
 import type { ScreenRect } from './services/config'
 import { createTranslationProvider } from './services/translation'
 import type { OverlayMode, RetoneOption, SessionInfo, TranslationTone } from './services/config'
@@ -55,13 +60,16 @@ import { checkForDesktopUpdate } from './services/release-check'
 
 const OVERLAY_WIDTH = 420
 const OVERLAY_MAX_HEIGHT = 460
+const SELECTION_TRIGGER_SIZE = 32
 const CURSOR_OFFSET = 16
 
 let overlayWindow: BrowserWindow | null = null
+let selectionTriggerWindow: BrowserWindow | null = null
 let settingsWindow: BrowserWindow | null = null
 let loginWindow: BrowserWindow | null = null
 let isTranslating = false
 let suppressOverlayBlur = false
+let overlayDragLock = false
 let lastOverlayImageDataUrl: string | undefined
 let lastScreenshotNativeImage: Electron.NativeImage | null = null
 let lastImageBlockLayout: TextOverlayBlock[] | null = null
@@ -113,7 +121,7 @@ function createOverlayWindow(): BrowserWindow {
     alwaysOnTop: true,
     skipTaskbar: true,
     resizable: false,
-    movable: false,
+    movable: true,
     focusable: true,
     hasShadow: true,
     type: 'toolbar',
@@ -134,7 +142,7 @@ function createOverlayWindow(): BrowserWindow {
   }
 
   overlayWindow.on('blur', () => {
-    if (suppressOverlayBlur) {
+    if (suppressOverlayBlur || overlayDragLock) {
       return
     }
     hideOverlayWindow()
@@ -145,6 +153,124 @@ function createOverlayWindow(): BrowserWindow {
   })
 
   return overlayWindow
+}
+
+function createSelectionTriggerWindow(): BrowserWindow {
+  if (selectionTriggerWindow && !selectionTriggerWindow.isDestroyed()) {
+    return selectionTriggerWindow
+  }
+
+  selectionTriggerWindow = new BrowserWindow({
+    width: SELECTION_TRIGGER_SIZE,
+    height: SELECTION_TRIGGER_SIZE,
+    show: false,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    resizable: false,
+    movable: false,
+    focusable: true,
+    hasShadow: false,
+    type: 'toolbar',
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false
+    }
+  })
+
+  selectionTriggerWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+
+  if (process.env.ELECTRON_RENDERER_URL) {
+    selectionTriggerWindow.loadURL(
+      `${process.env.ELECTRON_RENDERER_URL}/selection-trigger/index.html`
+    )
+  } else {
+    selectionTriggerWindow.loadFile(join(__dirname, '../renderer/selection-trigger/index.html'))
+  }
+
+  selectionTriggerWindow.on('closed', () => {
+    selectionTriggerWindow = null
+  })
+
+  return selectionTriggerWindow
+}
+
+function hideSelectionTriggerWindow(): void {
+  if (selectionTriggerWindow && !selectionTriggerWindow.isDestroyed()) {
+    selectionTriggerWindow.hide()
+  }
+}
+
+function clampSelectionTriggerPosition(x: number, y: number): { x: number; y: number } {
+  const display = screen.getDisplayNearestPoint({ x, y })
+  const area = display.workArea
+  const size = SELECTION_TRIGGER_SIZE
+
+  let px = x + 10
+  let py = y - size - 8
+
+  px = Math.max(area.x, Math.min(px, area.x + area.width - size))
+  py = Math.max(area.y, Math.min(py, area.y + area.height - size))
+
+  return { x: px, y: py }
+}
+
+function showSelectionTriggerWindow(x: number, y: number): void {
+  const win = createSelectionTriggerWindow()
+  const position = clampSelectionTriggerPosition(x, y)
+
+  win.setBounds({
+    x: position.x,
+    y: position.y,
+    width: SELECTION_TRIGGER_SIZE,
+    height: SELECTION_TRIGGER_SIZE
+  })
+  win.showInactive()
+}
+
+function isPointerOverSelectionTrigger(x: number, y: number): boolean {
+  if (
+    !selectionTriggerWindow ||
+    selectionTriggerWindow.isDestroyed() ||
+    !selectionTriggerWindow.isVisible()
+  ) {
+    return false
+  }
+
+  const bounds = selectionTriggerWindow.getBounds()
+  return (
+    x >= bounds.x &&
+    x <= bounds.x + bounds.width &&
+    y >= bounds.y &&
+    y <= bounds.y + bounds.height
+  )
+}
+
+function isSelectionListenerBlocked(): boolean {
+  if (isTranslating) {
+    return true
+  }
+
+  if (overlayWindow && !overlayWindow.isDestroyed() && overlayWindow.isVisible()) {
+    return true
+  }
+
+  if (isScreenshotPickerOpen()) {
+    return true
+  }
+
+  if (loginWindow && !loginWindow.isDestroyed() && loginWindow.isFocused()) {
+    return true
+  }
+
+  if (settingsWindow && !settingsWindow.isDestroyed() && settingsWindow.isFocused()) {
+    return true
+  }
+
+  return false
 }
 
 function createLoginWindow(): BrowserWindow {
@@ -304,21 +430,25 @@ async function translateText(original: string, tone: TranslationTone = 'default'
   return provider.translate(original, direction, tone)
 }
 
-async function handleDoubleCopyTranslate(): Promise<void> {
+async function handleTranslateOverlay(
+  prefilledText?: string,
+  reposition = true
+): Promise<void> {
   if (isTranslating) {
     return
   }
 
+  hideSelectionTriggerWindow()
   isTranslating = true
   captureTargetWindow()
   lastOverlayImageDataUrl = undefined
   lastScreenshotNativeImage = null
   lastImageBlockLayout = null
-  showOverlayLoading('')
+  showOverlayLoading('', undefined, reposition)
 
   try {
-    const selectedText = await getTextFromClipboard()
-    showOverlayLoading(selectedText)
+    const selectedText = prefilledText ?? (await getTextFromClipboard())
+    showOverlayLoading(selectedText, undefined, reposition)
 
     const translation = await translateText(selectedText)
     showOverlayResult(selectedText, translation)
@@ -327,6 +457,34 @@ async function handleDoubleCopyTranslate(): Promise<void> {
     showOverlayError(message)
   } finally {
     isTranslating = false
+  }
+}
+
+async function handleDoubleCopyTranslate(): Promise<void> {
+  await handleTranslateOverlay()
+}
+
+async function handleSelectionIconTranslate(): Promise<void> {
+  hideSelectionTriggerWindow()
+
+  if (isTranslating) {
+    return
+  }
+
+  setDoubleCopySuppressed(true)
+  let clipboardBackup = ''
+
+  try {
+    const copied = await copySelectedTextFromTarget()
+    clipboardBackup = copied.clipboardBackup
+    restoreClipboardText(clipboardBackup)
+    await handleTranslateOverlay(copied.text)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    showOverlayLoading('')
+    showOverlayError(message)
+  } finally {
+    setDoubleCopySuppressed(false)
   }
 }
 
@@ -366,6 +524,7 @@ async function handleDoubleCtrlQReplySuggest(): Promise<void> {
     return
   }
 
+  hideSelectionTriggerWindow()
   isTranslating = true
   captureTargetWindow()
   setDoubleCopySuppressed(true)
@@ -402,6 +561,7 @@ async function handleDoubleCtrlDTranslatePaste(): Promise<void> {
     return
   }
 
+  hideSelectionTriggerWindow()
   isTranslating = true
   captureTargetWindow()
   setDoubleCopySuppressed(true)
@@ -433,6 +593,7 @@ async function handleScreenshotTranslate(): Promise<void> {
   }
 
   hideOverlayWindow()
+  hideSelectionTriggerWindow()
 
   const bounds = await openScreenshotPicker()
   if (!bounds || bounds.width < 10 || bounds.height < 10) {
@@ -494,7 +655,7 @@ function setupKeyboardListeners(): void {
     }
 
     applyHotkeys(getSettings().hotkeys, {
-      translateOverlay: () => void handleDoubleCopyTranslate(),
+      translateOverlay: () => void handleTranslateOverlay(),
       translatePaste: () => void handleDoubleCtrlDTranslatePaste(),
       replySuggest: () => void handleDoubleCtrlQReplySuggest(),
       screenshotTranslate: () => void handleScreenshotTranslate()
@@ -512,6 +673,32 @@ function setupKeyboardListeners(): void {
 function setupIpc(): void {
   ipcMain.on('overlay:close', () => {
     hideOverlayWindow()
+  })
+
+  ipcMain.on('overlay:drag-start', () => {
+    overlayDragLock = true
+  })
+
+  ipcMain.on('overlay:drag-end', () => {
+    overlayDragLock = false
+  })
+
+  ipcMain.handle('overlay:get-position', () => {
+    if (!overlayWindow || overlayWindow.isDestroyed()) {
+      return [0, 0] as [number, number]
+    }
+    return overlayWindow.getPosition() as [number, number]
+  })
+
+  ipcMain.handle('overlay:set-position', (_event, x: number, y: number) => {
+    if (!overlayWindow || overlayWindow.isDestroyed()) {
+      return
+    }
+    overlayWindow.setPosition(Math.round(x), Math.round(y))
+  })
+
+  ipcMain.on('selection:activate', () => {
+    void handleSelectionIconTranslate()
   })
 
   ipcMain.handle('overlay:paste', async (_event, text: string) => {
@@ -579,7 +766,7 @@ function setupApp(): void {
 
   createTray({
     onTranslateClipboard: () => {
-      void handleDoubleCopyTranslate()
+      void handleTranslateOverlay()
     },
     onOpenSettings: () => {
       createSettingsWindow()
@@ -597,9 +784,27 @@ function setupApp(): void {
   })
 
   setupKeyboardListeners()
+
+  startSelectionListener({
+    onSelectionGesture: ({ x, y }) => {
+      showSelectionTriggerWindow(x, y)
+    },
+    onPointerDown: () => {
+      const cursor = screen.getCursorScreenPoint()
+      if (isPointerOverSelectionTrigger(cursor.x, cursor.y)) {
+        return
+      }
+      if (selectionTriggerWindow?.isVisible()) {
+        hideSelectionTriggerWindow()
+      }
+    },
+    isBlocked: () => isSelectionListenerBlocked(),
+    isPointerOverTrigger: (x, y) => isPointerOverSelectionTrigger(x, y)
+  })
+
   showTrayBalloon(
     'TransL 已啟動',
-    '可在設定中自訂快捷鍵（翻譯、貼上、回覆建議、截圖翻譯）'
+    '選取文字後可點旁邊圖示翻譯；浮動窗可拖曳標題列移動'
   )
 }
 
@@ -638,6 +843,7 @@ if (!gotTheLock) {
 
   app.on('will-quit', () => {
     stopAllHotkeys()
+    stopSelectionListener()
     cancelScreenshotPicker()
     destroyTray()
   })

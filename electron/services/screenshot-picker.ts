@@ -16,6 +16,10 @@ export interface CaptureInitPayload {
 let pickerWindow: BrowserWindow | null = null
 let pickerResolve: ((value: ScreenRect | null) => void) | null = null
 
+export function isScreenshotPickerOpen(): boolean {
+  return pickerWindow !== null && !pickerWindow.isDestroyed()
+}
+
 function getVirtualScreenBounds(): ScreenRect {
   const displays = screen.getAllDisplays()
   let minX = Infinity

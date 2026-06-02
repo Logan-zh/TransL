@@ -19,7 +19,11 @@ export interface ElectronAPI {
   onTranslateResult: (callback: (payload: TranslateResultPayload) => void) => () => void
   onTranslateError: (callback: (payload: TranslateErrorPayload) => void) => () => void
   closeOverlay: () => void
+  setOverlayDragging: (active: boolean) => void
+  getOverlayPosition: () => Promise<[number, number]>
+  setOverlayPosition: (x: number, y: number) => Promise<void>
   pasteTranslation: (text: string) => Promise<void>
+  activateSelectionTranslate: () => void
   retoneTranslation: (original: string, tone: RetoneOption) => Promise<void>
   getSettings: () => Promise<AppSettings>
   saveSettings: (settings: Partial<AppSettings>) => Promise<AppSettings>
@@ -60,7 +64,15 @@ const api: ElectronAPI = {
   closeOverlay: () => {
     ipcRenderer.send('overlay:close')
   },
+  setOverlayDragging: (active) => {
+    ipcRenderer.send(active ? 'overlay:drag-start' : 'overlay:drag-end')
+  },
+  getOverlayPosition: () => ipcRenderer.invoke('overlay:get-position'),
+  setOverlayPosition: (x, y) => ipcRenderer.invoke('overlay:set-position', x, y),
   pasteTranslation: (text) => ipcRenderer.invoke('overlay:paste', text),
+  activateSelectionTranslate: () => {
+    ipcRenderer.send('selection:activate')
+  },
   retoneTranslation: (original, tone) => ipcRenderer.invoke('overlay:retone', { original, tone }),
   getSettings: () => ipcRenderer.invoke('settings:get'),
   saveSettings: (settings) => ipcRenderer.invoke('settings:save', settings),
