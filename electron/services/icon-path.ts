@@ -14,5 +14,8 @@ export function getTrayIconPath(): string {
 }
 
 export function getAppIconPath(): string {
+  if (process.platform === 'win32') {
+    return getResourcesPath('icon.ico')
+  }
   return getResourcesPath('icon.png')
 }

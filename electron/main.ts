@@ -45,7 +45,7 @@ import { createTranslationProvider } from './services/translation'
 import type { OverlayMode, RetoneOption, SessionInfo, TranslationTone } from './services/config'
 import { getSettings, saveSettings, applyStoredAutoLaunch, hasLegacyApiKeys } from './services/settings-store'
 import { DEFAULT_HOTKEYS } from './services/config'
-import { isAccessTokenValid } from './services/auth-store'
+import { hasStoredSession } from './services/auth-store'
 import {
   ensureAuthenticated,
   getProfile,
@@ -358,10 +358,11 @@ function hideOverlayWindow(): void {
 
 async function getSessionInfo(): Promise<SessionInfo> {
   const legacyApiKeyDetected = hasLegacyApiKeys()
-  if (!isAccessTokenValid()) {
+  if (!hasStoredSession()) {
     return { loggedIn: false, profile: null, legacyApiKeyDetected }
   }
   try {
+    await ensureAuthenticated()
     const profile = await getProfile()
     return { loggedIn: true, profile, legacyApiKeyDetected }
   } catch {
@@ -826,12 +827,13 @@ if (!gotTheLock) {
       void checkForDesktopUpdate({ silent: true })
     }, 3000)
 
-    if (!isAccessTokenValid()) {
+    if (!hasStoredSession()) {
       createLoginWindow()
       return
     }
 
     try {
+      await ensureAuthenticated()
       const profile = await getProfile()
       if (!profile.provider) {
         showTrayBalloon('TransL', '尚未指派翻譯服務，請聯絡管理員後再使用翻譯功能。')
