@@ -14,6 +14,10 @@ body,
   font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
 }
 
+#root {
+  padding: 8px;
+}
+
 .overlay-hidden {
   opacity: 0;
   pointer-events: none;
@@ -22,8 +26,7 @@ body,
 .overlay-card {
   width: 100%;
   min-height: 80px;
-  max-height: 440px;
-  margin: 8px;
+  max-height: 100%;
   padding: 12px 14px;
   border-radius: 12px;
   background: rgba(28, 28, 30, 0.94);
@@ -81,7 +84,7 @@ body,
 }
 
 .overlay-card-reply {
-  max-height: 480px;
+  max-height: 100%;
 }
 
 .overlay-section-label {
@@ -223,6 +226,7 @@ body,
   display: flex;
   gap: 8px;
   align-items: flex-start;
+  flex-wrap: wrap;
 }
 
 .overlay-action {

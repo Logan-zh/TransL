@@ -25,6 +25,8 @@ export interface ElectronAPI {
   saveSettings: (settings: Partial<AppSettings>) => Promise<AppSettings>
   captureHotkey: () => Promise<HotkeyBinding>
   getSession: () => Promise<SessionInfo>
+  onSessionChanged: (callback: (session: SessionInfo) => void) => () => void
+  getAppVersion: () => Promise<string>
   login: (payload: { username: string; password: string }) => Promise<MemberProfile>
   logout: () => Promise<void>
   openLogin: () => void
@@ -64,6 +66,14 @@ const api: ElectronAPI = {
   saveSettings: (settings) => ipcRenderer.invoke('settings:save', settings),
   captureHotkey: () => ipcRenderer.invoke('hotkey:capture'),
   getSession: () => ipcRenderer.invoke('auth:session'),
+  onSessionChanged: (callback) => {
+    const listener = (_event: Electron.IpcRendererEvent, session: SessionInfo): void => {
+      callback(session)
+    }
+    ipcRenderer.on('session:changed', listener)
+    return () => ipcRenderer.removeListener('session:changed', listener)
+  },
+  getAppVersion: () => ipcRenderer.invoke('app:version'),
   login: (payload) => ipcRenderer.invoke('auth:login', payload),
   logout: () => ipcRenderer.invoke('auth:logout'),
   openLogin: () => ipcRenderer.send('auth:open-login'),

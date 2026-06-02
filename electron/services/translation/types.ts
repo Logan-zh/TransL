@@ -23,8 +23,8 @@ export interface TranslationProvider {
 function getToneInstruction(tone: TranslationTone, direction?: TranslationDirection): string {
   if (tone === 'colloquial') {
     return direction === 'zh-to-en'
-      ? 'Use casual, conversational English that sounds natural and easy to understand.'
-      : 'Use casual, everyday Traditional Chinese (zh-TW) that sounds natural and easy to understand.'
+      ? 'Use natural, idiomatic English that a native speaker would write or say in everyday life. Prefer common collocations and spoken-style phrasing over literal word-for-word translation. Use contractions where natural. Keep it conversational, locally natural, and easy to understand—not stiff, textbook-like, or overly formal.'
+      : 'Use natural, idiomatic Traditional Chinese (zh-TW) as native speakers would in daily conversation—口語化、在地化，避免生硬直譯、書面套話或過度正式用語。'
   }
 
   if (tone === 'professional') {
@@ -63,7 +63,7 @@ ${text}`
 
 function getImageToneInstruction(tone: TranslationTone): string {
   if (tone === 'colloquial') {
-    return 'Use a casual, natural tone in the translation.'
+    return 'Use a natural, idiomatic, conversational tone—as a native speaker would express it, not a literal translation.'
   }
   if (tone === 'professional') {
     return 'Use a formal, professional tone in the translation.'

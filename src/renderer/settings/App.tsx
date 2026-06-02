@@ -112,6 +112,20 @@ export default function App(): JSX.Element {
     void refresh().catch((error) => {
       setMessage(error instanceof Error ? error.message : '載入失敗')
     })
+
+    const unsubSession = window.electronAPI.onSessionChanged((sessionInfo) => {
+      setSession(sessionInfo)
+    })
+
+    const onFocus = (): void => {
+      void refresh().catch(() => {})
+    }
+    window.addEventListener('focus', onFocus)
+
+    return () => {
+      unsubSession()
+      window.removeEventListener('focus', onFocus)
+    }
   }, [])
 
   const handleSubmit = async (event: FormEvent): Promise<void> => {

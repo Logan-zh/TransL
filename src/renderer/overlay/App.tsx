@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { cancelSpeech, speakText } from './speech'
 import ZoomableImage from './ZoomableImage'
 
 type OverlayMode = 'translate' | 'reply'
@@ -26,6 +27,7 @@ export default function App(): JSX.Element {
   const [state, setState] = useState<OverlayState>({ status: 'idle' })
   const [showModifyMenu, setShowModifyMenu] = useState(false)
   const [isPasting, setIsPasting] = useState(false)
+  const [isSpeaking, setIsSpeaking] = useState(false)
   const modifyRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -68,6 +70,7 @@ export default function App(): JSX.Element {
       unsubResult()
       unsubError()
       window.removeEventListener('keydown', onKeyDown)
+      cancelSpeech()
     }
   }, [])
 
@@ -106,6 +109,19 @@ export default function App(): JSX.Element {
 
     setShowModifyMenu(false)
     void window.electronAPI.retoneTranslation(state.original, tone)
+  }
+
+  const handleSpeak = async (): Promise<void> => {
+    if (state.status !== 'success' || isSpeaking) {
+      return
+    }
+
+    setIsSpeaking(true)
+    try {
+      await speakText(state.original)
+    } finally {
+      setIsSpeaking(false)
+    }
   }
 
   if (state.status === 'idle') {
@@ -179,6 +195,17 @@ export default function App(): JSX.Element {
             </button>
 
             {!isReply && (
+              <button
+                type="button"
+                className="overlay-action"
+                onClick={() => void handleSpeak()}
+                disabled={isSpeaking}
+              >
+                {isSpeaking ? '播放中…' : '發音'}
+              </button>
+            )}
+
+            {!isReply && (
               <div className="overlay-modify" ref={modifyRef}>
                 <button
                   type="button"
@@ -191,7 +218,7 @@ export default function App(): JSX.Element {
                 {showModifyMenu && (
                   <div className="overlay-modify-menu">
                     <button type="button" onClick={() => handleRetone('colloquial')}>
-                      更平易近人
+                      更自然
                     </button>
                     <button type="button" onClick={() => handleRetone('professional')}>
                       更專業

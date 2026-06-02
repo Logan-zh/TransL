@@ -1,6 +1,6 @@
 {
   "name": "transl",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Windows text selection AI translator with floating overlay",
   "main": "./out/main/index.js",
   "scripts": {

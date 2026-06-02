@@ -37,7 +37,7 @@ import {
 } from './services/screenshot-picker'
 import type { ScreenRect } from './services/config'
 import { createTranslationProvider } from './services/translation'
-import type { OverlayMode, RetoneOption, TranslationTone } from './services/config'
+import type { OverlayMode, RetoneOption, SessionInfo, TranslationTone } from './services/config'
 import { getSettings, saveSettings, applyStoredAutoLaunch, hasLegacyApiKeys } from './services/settings-store'
 import { DEFAULT_HOTKEYS } from './services/config'
 import { isAccessTokenValid } from './services/auth-store'
@@ -228,6 +228,27 @@ function hideOverlayWindow(): void {
   if (overlayWindow && !overlayWindow.isDestroyed()) {
     overlayWindow.hide()
   }
+}
+
+async function getSessionInfo(): Promise<SessionInfo> {
+  const legacyApiKeyDetected = hasLegacyApiKeys()
+  if (!isAccessTokenValid()) {
+    return { loggedIn: false, profile: null, legacyApiKeyDetected }
+  }
+  try {
+    const profile = await getProfile()
+    return { loggedIn: true, profile, legacyApiKeyDetected }
+  } catch {
+    return { loggedIn: false, profile: null, legacyApiKeyDetected }
+  }
+}
+
+function notifySettingsSessionChanged(): void {
+  void getSessionInfo().then((session) => {
+    if (settingsWindow && !settingsWindow.isDestroyed()) {
+      settingsWindow.webContents.send('session:changed', session)
+    }
+  })
 }
 
 function showOverlayLoading(
@@ -503,6 +524,8 @@ function setupIpc(): void {
 
   ipcMain.handle('settings:get', () => getSettings())
 
+  ipcMain.handle('app:version', () => app.getVersion())
+
   ipcMain.handle('settings:save', (_event, partial) => {
     const saved = saveSettings(partial)
     const conflict = partial.hotkeys ? validateHotkeys(saved.hotkeys) : null
@@ -517,24 +540,14 @@ function setupIpc(): void {
     return captureHotkeyBinding()
   })
 
-  ipcMain.handle('auth:session', async () => {
-    const legacyApiKeyDetected = hasLegacyApiKeys()
-    if (!isAccessTokenValid()) {
-      return { loggedIn: false, profile: null, legacyApiKeyDetected }
-    }
-    try {
-      const profile = await getProfile()
-      return { loggedIn: true, profile, legacyApiKeyDetected }
-    } catch {
-      return { loggedIn: false, profile: null, legacyApiKeyDetected }
-    }
-  })
+  ipcMain.handle('auth:session', () => getSessionInfo())
 
   ipcMain.handle('auth:login', async (_event, payload: { username: string; password: string }) => {
     const profile = await apiLogin(payload.username, payload.password)
     if (loginWindow && !loginWindow.isDestroyed()) {
       loginWindow.close()
     }
+    notifySettingsSessionChanged()
     if (!profile.provider) {
       showTrayBalloon('TransL', '登入成功，但尚未指派翻譯服務，請聯絡管理員。')
     } else {
@@ -545,6 +558,7 @@ function setupIpc(): void {
 
   ipcMain.handle('auth:logout', async () => {
     apiLogout()
+    notifySettingsSessionChanged()
   })
 
   ipcMain.on('auth:open-login', () => {

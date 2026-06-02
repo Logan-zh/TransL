@@ -1,10 +1,15 @@
-import { FormEvent, useState } from 'react'
+import { FormEvent, useEffect, useState } from 'react'
 
 export default function App(): JSX.Element {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [version, setVersion] = useState('')
+
+  useEffect(() => {
+    void window.electronAPI.getAppVersion().then(setVersion)
+  }, [])
 
   const handleSubmit = async (event: FormEvent): Promise<void> => {
     event.preventDefault()
@@ -22,7 +27,7 @@ export default function App(): JSX.Element {
   return (
     <div className="login-page">
       <form className="login-card" onSubmit={(e) => void handleSubmit(e)}>
-        <h1>TransL 2.0</h1>
+        <h1>{version ? `TransL v${version}` : 'TransL'}</h1>
         <p className="login-hint">請使用管理後台建立的會員帳號登入</p>
         <label>
           帳號
