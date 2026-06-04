@@ -26,14 +26,6 @@ let isPointerDown = false
 let downX = 0
 let downY = 0
 
-function notifySelectionGesture(x: number, y: number): void {
-  if (!options || options.isBlocked() || options.isPointerOverTrigger(x, y)) {
-    return
-  }
-
-  options.onSelectionGesture({ x, y })
-}
-
 export function startSelectionListener(listenerOptions: SelectionListenerOptions): void {
   stopSelectionListener()
   options = listenerOptions
@@ -69,7 +61,11 @@ export function startSelectionListener(listenerOptions: SelectionListenerOptions
         return
       }
 
-      notifySelectionGesture(cursor.x, cursor.y)
+      if (options.isBlocked() || options.isPointerOverTrigger(cursor.x, cursor.y)) {
+        return
+      }
+
+      options.onSelectionGesture({ x: cursor.x, y: cursor.y })
     }
   }, POLL_INTERVAL_MS)
 }

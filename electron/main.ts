@@ -18,7 +18,12 @@ for (const envPath of [join(process.cwd(), '.env'), join(__dirname, '../../.env'
 }
 import { getTextFromClipboard } from './services/clipboard-text'
 import { copySelectedTextFromTarget } from './services/copy-selection'
-import { startDoubleCopyListener, stopDoubleCopyListener, setDoubleCopySuppressed } from './services/double-copy'
+import {
+  startDoubleCopyListener,
+  stopDoubleCopyListener,
+  setDoubleCopySuppressed,
+  syncDoubleCopyBaseline
+} from './services/double-copy'
 import { captureHotkeyBinding } from './services/hotkey-capture'
 import { applyHotkeys, stopAllHotkeys, validateHotkeys } from './services/hotkey-manager'
 import { detectTranslationDirection } from './services/language'
@@ -121,7 +126,7 @@ function createOverlayWindow(): BrowserWindow {
     alwaysOnTop: true,
     skipTaskbar: true,
     resizable: false,
-    movable: true,
+    movable: false,
     focusable: true,
     hasShadow: true,
     type: 'toolbar',
@@ -134,6 +139,8 @@ function createOverlayWindow(): BrowserWindow {
   })
 
   overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  overlayWindow.setMinimumSize(OVERLAY_WIDTH, 80)
+  overlayWindow.setMaximumSize(OVERLAY_WIDTH, OVERLAY_MAX_HEIGHT)
 
   if (process.env.ELECTRON_RENDERER_URL) {
     overlayWindow.loadURL(`${process.env.ELECTRON_RENDERER_URL}/overlay/index.html`)
@@ -486,6 +493,7 @@ async function handleSelectionIconTranslate(): Promise<void> {
     showOverlayError(message)
   } finally {
     setDoubleCopySuppressed(false)
+    syncDoubleCopyBaseline()
   }
 }
 
@@ -695,7 +703,14 @@ function setupIpc(): void {
     if (!overlayWindow || overlayWindow.isDestroyed()) {
       return
     }
-    overlayWindow.setPosition(Math.round(x), Math.round(y))
+    const bounds = overlayWindow.getBounds()
+    const height = Math.min(Math.max(bounds.height, 80), OVERLAY_MAX_HEIGHT)
+    overlayWindow.setBounds({
+      x: Math.round(x),
+      y: Math.round(y),
+      width: OVERLAY_WIDTH,
+      height
+    })
   })
 
   ipcMain.on('selection:activate', () => {
@@ -721,6 +736,7 @@ function setupIpc(): void {
       throw new Error(conflict)
     }
     setupKeyboardListeners()
+    setupSelectionListener()
     return saved
   })
 
@@ -774,7 +790,8 @@ function setupApp(): void {
     },
     onReloadListener: () => {
       setupKeyboardListeners()
-      showTrayBalloon('TransL', '快捷鍵監聽已重新載入')
+      setupSelectionListener()
+      showTrayBalloon('TransL', '快捷鍵與選取提示已重新載入')
     },
     onCheckUpdate: () => {
       void checkForDesktopUpdate()
@@ -785,6 +802,21 @@ function setupApp(): void {
   })
 
   setupKeyboardListeners()
+  setupSelectionListener()
+
+  showTrayBalloon(
+    'TransL 已啟動',
+    '拖曳選取後可點旁邊圖示翻譯；亦可使用快捷鍵或雙擊 Ctrl+C'
+  )
+}
+
+function setupSelectionListener(): void {
+  stopSelectionListener()
+  hideSelectionTriggerWindow()
+
+  if (!getSettings().showSelectionTrigger) {
+    return
+  }
 
   startSelectionListener({
     onSelectionGesture: ({ x, y }) => {
@@ -802,11 +834,6 @@ function setupApp(): void {
     isBlocked: () => isSelectionListenerBlocked(),
     isPointerOverTrigger: (x, y) => isPointerOverSelectionTrigger(x, y)
   })
-
-  showTrayBalloon(
-    'TransL 已啟動',
-    '選取文字後可點旁邊圖示翻譯；浮動窗可拖曳標題列移動'
-  )
 }
 
 const gotTheLock = app.requestSingleInstanceLock()

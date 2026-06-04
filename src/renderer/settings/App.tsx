@@ -92,6 +92,7 @@ function HotkeyBindingEditor({
 
 export default function App(): JSX.Element {
   const [openAtLogin, setOpenAtLogin] = useState(false)
+  const [showSelectionTrigger, setShowSelectionTrigger] = useState(true)
   const [hotkeys, setHotkeys] = useState<AppHotkeys>(DEFAULT_HOTKEYS)
   const [session, setSession] = useState<SessionInfo | null>(null)
   const [saving, setSaving] = useState(false)
@@ -104,6 +105,7 @@ export default function App(): JSX.Element {
       window.electronAPI.getSession()
     ])
     setOpenAtLogin(settings.openAtLogin)
+    setShowSelectionTrigger(settings.showSelectionTrigger)
     setHotkeys(settings.hotkeys)
     setSession(sessionInfo)
   }
@@ -133,8 +135,8 @@ export default function App(): JSX.Element {
     setSaving(true)
     setMessage(null)
     try {
-      await window.electronAPI.saveSettings({ openAtLogin, hotkeys })
-      setMessage('設定已儲存，快捷鍵已套用。')
+      await window.electronAPI.saveSettings({ openAtLogin, showSelectionTrigger, hotkeys })
+      setMessage('設定已儲存。')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '儲存失敗')
     } finally {
@@ -308,6 +310,21 @@ export default function App(): JSX.Element {
           >
             全部恢復預設
           </button>
+        </section>
+
+        <section className="settings-section settings-checkbox-row">
+          <label htmlFor="showSelectionTrigger" className="settings-checkbox-label">
+            <input
+              id="showSelectionTrigger"
+              type="checkbox"
+              checked={showSelectionTrigger}
+              onChange={(e) => setShowSelectionTrigger(e.target.checked)}
+            />
+            <span>拖曳選取後顯示翻譯小圖示</span>
+          </label>
+          <p className="settings-hint settings-hint-indent">
+            僅在滑鼠拖曳框選後顯示；點擊圖示才複製並翻譯，不會自動讀取剪貼簿。
+          </p>
         </section>
 
         <section className="settings-section settings-checkbox-row">

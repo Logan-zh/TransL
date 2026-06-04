@@ -78,8 +78,11 @@ function mergeHotkeys(stored: unknown): AppHotkeys {
 }
 
 export function getSettings(): AppSettings {
+  const storedShowTrigger = store.get('showSelectionTrigger')
   return {
     openAtLogin: getAutoLaunchEnabled(),
+    showSelectionTrigger:
+      typeof storedShowTrigger === 'boolean' ? storedShowTrigger : DEFAULT_SETTINGS.showSelectionTrigger,
     hotkeys: mergeHotkeys(store.get('hotkeys'))
   }
 }
@@ -92,6 +95,10 @@ export function saveSettings(settings: Partial<AppSettings>): AppSettings {
 
   if (settings.hotkeys !== undefined) {
     store.set('hotkeys', settings.hotkeys)
+  }
+
+  if (settings.showSelectionTrigger !== undefined) {
+    store.set('showSelectionTrigger', settings.showSelectionTrigger)
   }
 
   return getSettings()

@@ -20,6 +20,12 @@ export function setDoubleCopySuppressed(value: boolean): void {
   lastSeq = getClipboardSequenceNumber()
 }
 
+/** 重設雙擊 Ctrl+C 計時基準，避免程式內部複製干擾使用者快捷鍵 */
+export function syncDoubleCopyBaseline(): void {
+  lastChangeTime = 0
+  lastSeq = getClipboardSequenceNumber()
+}
+
 export function startDoubleCopyListener(handler: () => void): void {
   stopDoubleCopyListener()
 

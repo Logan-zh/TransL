@@ -57,11 +57,14 @@ export const DEFAULT_HOTKEYS: AppHotkeys = {
 
 export interface AppSettings {
   openAtLogin: boolean
+  /** 拖曳選取文字後顯示翻譯小圖示（點擊才複製翻譯，不會自動讀剪貼簿） */
+  showSelectionTrigger: boolean
   hotkeys: AppHotkeys
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
   openAtLogin: false,
+  showSelectionTrigger: true,
   hotkeys: DEFAULT_HOTKEYS
 }
 

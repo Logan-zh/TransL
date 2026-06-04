@@ -65,6 +65,10 @@ body {
   color: #888;
 }
 
+.settings-hint-indent {
+  margin: 6px 0 0 26px;
+}
+
 .settings-checkbox-row {
   padding-top: 4px;
 }
