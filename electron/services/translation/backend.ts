@@ -1,5 +1,5 @@
 import { NativeImage } from 'electron'
-import { TranslationDirection, TranslationTone } from '../config'
+import { TranslationDirection, TranslationTargetLang, TranslationTone } from '../config'
 import { translateImageApi, translateTextApi } from '../api-client'
 import { ImageTranslationResult, TranslationProvider } from './types'
 
@@ -8,9 +8,10 @@ export function createBackendTranslationProvider(): TranslationProvider {
     async translate(
       text: string,
       direction: TranslationDirection,
-      tone: TranslationTone = 'default'
+      tone: TranslationTone = 'default',
+      targetLang?: TranslationTargetLang
     ): Promise<string> {
-      return translateTextApi(text, direction, tone)
+      return translateTextApi(text, direction, tone, targetLang)
     },
 
     async translateImage(

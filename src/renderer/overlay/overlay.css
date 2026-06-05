@@ -276,7 +276,7 @@ body,
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
-  min-width: 140px;
+  min-width: 152px;
   padding: 4px;
   border-radius: 8px;
   background: rgba(22, 22, 24, 0.98);
@@ -299,6 +299,19 @@ body,
 }
 
 .overlay-modify-menu button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.overlay-modify-menu-label {
+  margin: 4px 10px 2px;
+  font-size: 10px;
+  color: #888;
+  letter-spacing: 0.02em;
+}
+
+.overlay-modify-menu-divider {
+  height: 1px;
+  margin: 6px 8px;
   background: rgba(255, 255, 255, 0.1);
 }
 

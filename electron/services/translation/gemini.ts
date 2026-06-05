@@ -1,4 +1,4 @@
-import { TranslationDirection, TranslationTone } from '../config'
+import { TranslationDirection, TranslationTargetLang, TranslationTone } from '../config'
 import {
   buildImageTranslationPrompt,
   buildTranslationPrompt,
@@ -13,7 +13,12 @@ interface GeminiConfig {
 
 export function createGeminiProvider(config: GeminiConfig): TranslationProvider {
   return {
-    async translate(text: string, direction: TranslationDirection, tone: TranslationTone = 'default'): Promise<string> {
+    async translate(
+      text: string,
+      direction: TranslationDirection,
+      tone: TranslationTone = 'default',
+      targetLang?: TranslationTargetLang
+    ): Promise<string> {
       if (!config.apiKey) {
         throw new Error('請在設定中輸入 Gemini API Key。')
       }
@@ -28,7 +33,7 @@ export function createGeminiProvider(config: GeminiConfig): TranslationProvider 
         body: JSON.stringify({
           contents: [
             {
-              parts: [{ text: buildTranslationPrompt(text, direction, tone) }]
+              parts: [{ text: buildTranslationPrompt(text, direction, tone, targetLang) }]
             }
           ],
           generationConfig: {

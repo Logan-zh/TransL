@@ -1,9 +1,13 @@
 import { screen } from 'electron'
 import { load } from 'koffi'
-import { captureTargetWindow } from './window-focus'
+import { delay } from './clipboard'
+import { getForegroundSettleDelayMs, hasTextSelectionAtPoint } from './uia-selection'
+import { captureTargetWindow, hasForegroundContextChanged } from './window-focus'
 
 const POLL_INTERVAL_MS = 40
 const MIN_DRAG_PX = 4
+const DOUBLE_CLICK_MS = 500
+const MAX_CLICK_MOVE_PX = 10
 const VK_LBUTTON = 0x01
 
 const user32 = load('user32.dll')
@@ -25,11 +29,88 @@ let options: SelectionListenerOptions | null = null
 let isPointerDown = false
 let downX = 0
 let downY = 0
+let isCheckingDoubleClick = false
+let lastReleaseTime = 0
+let lastReleaseX = 0
+let lastReleaseY = 0
+let clickCount = 0
+
+function notifySelectionGesture(x: number, y: number): void {
+  if (!options || options.isBlocked() || options.isPointerOverTrigger(x, y)) {
+    return
+  }
+
+  options.onSelectionGesture({ x, y })
+}
+
+async function tryNotifyAfterDoubleClick(x: number, y: number): Promise<void> {
+  if (!options || options.isBlocked() || options.isPointerOverTrigger(x, y) || isCheckingDoubleClick) {
+    return
+  }
+
+  isCheckingDoubleClick = true
+  try {
+    await delay(getForegroundSettleDelayMs())
+
+    if (!options || options.isBlocked() || options.isPointerOverTrigger(x, y)) {
+      return
+    }
+
+    if (hasForegroundContextChanged()) {
+      return
+    }
+
+    const hasText = await hasTextSelectionAtPoint(x, y)
+    if (!hasText) {
+      return
+    }
+
+    notifySelectionGesture(x, y)
+  } finally {
+    isCheckingDoubleClick = false
+  }
+}
+
+function handlePointerRelease(cursorX: number, cursorY: number): void {
+  const dx = cursorX - downX
+  const dy = cursorY - downY
+  const distance = Math.hypot(dx, dy)
+  const now = Date.now()
+
+  if (distance >= MIN_DRAG_PX) {
+    clickCount = 0
+    notifySelectionGesture(cursorX, cursorY)
+    return
+  }
+
+  const nearLastClick =
+    lastReleaseTime > 0 &&
+    now - lastReleaseTime <= DOUBLE_CLICK_MS &&
+    Math.hypot(cursorX - lastReleaseX, cursorY - lastReleaseY) <= MAX_CLICK_MOVE_PX
+
+  if (nearLastClick) {
+    clickCount += 1
+  } else {
+    clickCount = 1
+  }
+
+  lastReleaseTime = now
+  lastReleaseX = cursorX
+  lastReleaseY = cursorY
+
+  if (clickCount >= 2) {
+    clickCount = 0
+    void tryNotifyAfterDoubleClick(cursorX, cursorY)
+  }
+}
 
 export function startSelectionListener(listenerOptions: SelectionListenerOptions): void {
   stopSelectionListener()
   options = listenerOptions
   isPointerDown = false
+  isCheckingDoubleClick = false
+  lastReleaseTime = 0
+  clickCount = 0
 
   pollTimer = setInterval(() => {
     if (!options) {
@@ -53,19 +134,7 @@ export function startSelectionListener(listenerOptions: SelectionListenerOptions
 
     if (!down && isPointerDown) {
       isPointerDown = false
-      const dx = cursor.x - downX
-      const dy = cursor.y - downY
-      const distance = Math.hypot(dx, dy)
-
-      if (distance < MIN_DRAG_PX) {
-        return
-      }
-
-      if (options.isBlocked() || options.isPointerOverTrigger(cursor.x, cursor.y)) {
-        return
-      }
-
-      options.onSelectionGesture({ x: cursor.x, y: cursor.y })
+      handlePointerRelease(cursor.x, cursor.y)
     }
   }, POLL_INTERVAL_MS)
 }
@@ -77,4 +146,7 @@ export function stopSelectionListener(): void {
   }
   options = null
   isPointerDown = false
+  isCheckingDoubleClick = false
+  lastReleaseTime = 0
+  clickCount = 0
 }

@@ -1,4 +1,4 @@
-import { TranslationDirection, TranslationTone } from '../config'
+import { TranslationDirection, TranslationTargetLang, TranslationTone } from '../config'
 import {
   buildImageTranslationPrompt,
   buildTranslationPrompt,
@@ -13,7 +13,12 @@ interface OpenAIConfig {
 
 export function createOpenAIProvider(config: OpenAIConfig): TranslationProvider {
   return {
-    async translate(text: string, direction: TranslationDirection, tone: TranslationTone = 'default'): Promise<string> {
+    async translate(
+      text: string,
+      direction: TranslationDirection,
+      tone: TranslationTone = 'default',
+      targetLang?: TranslationTargetLang
+    ): Promise<string> {
       if (!config.apiKey) {
         throw new Error('請在設定中輸入 OpenAI API Key。')
       }
@@ -29,7 +34,7 @@ export function createOpenAIProvider(config: OpenAIConfig): TranslationProvider 
           messages: [
             {
               role: 'user',
-              content: buildTranslationPrompt(text, direction, tone)
+              content: buildTranslationPrompt(text, direction, tone, targetLang)
             }
           ],
           temperature: 0.3

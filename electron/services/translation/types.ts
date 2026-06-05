@@ -1,4 +1,4 @@
-import { TranslationDirection, TranslationTone } from '../config'
+import { TranslationDirection, TranslationTargetLang, TranslationTone } from '../config'
 
 export interface TextOverlayBlock {
   original: string
@@ -16,8 +16,19 @@ export interface ImageTranslationResult {
 }
 
 export interface TranslationProvider {
-  translate(text: string, direction: TranslationDirection, tone?: TranslationTone): Promise<string>
+  translate(
+    text: string,
+    direction: TranslationDirection,
+    tone?: TranslationTone,
+    targetLang?: TranslationTargetLang
+  ): Promise<string>
   translateImage(image: Electron.NativeImage, tone?: TranslationTone): Promise<ImageTranslationResult>
+}
+
+const TARGET_LANG_LABEL: Record<TranslationTargetLang, string> = {
+  en: 'English',
+  ko: 'Korean',
+  ja: 'Japanese'
 }
 
 function getToneInstruction(tone: TranslationTone, direction?: TranslationDirection): string {
@@ -36,15 +47,56 @@ function getToneInstruction(tone: TranslationTone, direction?: TranslationDirect
   return ''
 }
 
+function getToneInstructionForTarget(
+  tone: TranslationTone,
+  target: TranslationTargetLang
+): string {
+  if (tone === 'colloquial') {
+    if (target === 'en') {
+      return 'Use natural, idiomatic English that a native speaker would write or say in everyday life. Prefer common collocations and spoken-style phrasing over literal word-for-word translation. Use contractions where natural. Keep it conversational, locally natural, and easy to understand—not stiff, textbook-like, or overly formal.'
+    }
+    if (target === 'ko') {
+      return 'Use natural, idiomatic Korean as native speakers would in daily conversation—口語化、在地化，避免生硬直譯或過度正式用語。'
+    }
+    return 'Use natural, idiomatic Japanese as native speakers would in daily conversation—口語化、自然な言い回し，避免生硬直譯或過度正式用語。'
+  }
+
+  if (tone === 'professional') {
+    if (target === 'en') {
+      return 'Use formal, professional English suitable for business or academic contexts.'
+    }
+    if (target === 'ko') {
+      return 'Use formal, professional Korean suitable for business or academic contexts.'
+    }
+    return 'Use formal, professional Japanese suitable for business or academic contexts.'
+  }
+
+  return ''
+}
+
 export function buildTranslationPrompt(
   text: string,
   direction: TranslationDirection,
-  tone: TranslationTone = 'default'
+  tone: TranslationTone = 'default',
+  targetLang?: TranslationTargetLang
 ): string {
-  const toneLine = getToneInstruction(tone, direction)
-  const toneSuffix = toneLine ? `\n${toneLine}` : ''
   const formatRule =
     '\nPreserve the original line breaks, paragraph breaks, and blank lines. Each line in the source should correspond to a line in the translation.'
+
+  if (targetLang) {
+    const label = TARGET_LANG_LABEL[targetLang]
+    const toneLine = getToneInstructionForTarget(tone, targetLang)
+    const toneSuffix = toneLine ? `\n${toneLine}` : ''
+    return `Translate the following text into ${label}.
+Automatically detect the source language (e.g. Chinese, English, Korean, Japanese, or other languages). If the text is already in ${label}, return it unchanged.
+Return only the translation, no explanation.${formatRule}${toneSuffix}
+
+Text:
+${text}`
+  }
+
+  const toneLine = getToneInstruction(tone, direction)
+  const toneSuffix = toneLine ? `\n${toneLine}` : ''
 
   if (direction === 'zh-to-en') {
     return `Translate the following Chinese text to English.
@@ -54,7 +106,8 @@ Text:
 ${text}`
   }
 
-  return `Translate the following English text to Traditional Chinese (zh-TW).
+  return `Translate the following text into Traditional Chinese (zh-TW).
+Automatically detect the source language (e.g. English, Korean, Japanese, or other languages). If the text is already in Traditional Chinese, return it unchanged.
 Return only the translation, no explanation.${formatRule}${toneSuffix}
 
 Text:
@@ -77,7 +130,7 @@ export function buildImageTranslationPrompt(tone: TranslationTone = 'default'): 
 
   return `Look at this screenshot and:
 1. Extract ALL visible text exactly as it appears, preserving line breaks and blank lines.
-2. Translate the text: if it contains Chinese characters, translate to English; otherwise translate to Traditional Chinese (zh-TW).
+2. Translate the text: if it contains Chinese characters, translate to English; otherwise detect the source language and translate into Traditional Chinese (zh-TW).
 3. Preserve the same line breaks and paragraph structure in both original and translation.
 4. For each visible text line or paragraph, estimate its bounding box on the image using normalized coordinates from 0 to 1 (relative to image width/height).${toneSuffix}
 

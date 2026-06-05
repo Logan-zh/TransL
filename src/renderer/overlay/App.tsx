@@ -110,7 +110,16 @@ export default function App(): JSX.Element {
     }
 
     setShowModifyMenu(false)
-    void window.electronAPI.retoneTranslation(state.original, tone)
+    void window.electronAPI.retoneTranslation(state.original, { tone })
+  }
+
+  const handleRetarget = (targetLang: 'en' | 'ko' | 'ja'): void => {
+    if (state.status !== 'success') {
+      return
+    }
+
+    setShowModifyMenu(false)
+    void window.electronAPI.retoneTranslation(state.original, { targetLang })
   }
 
   const handleSpeak = async (): Promise<void> => {
@@ -219,11 +228,23 @@ export default function App(): JSX.Element {
 
                 {showModifyMenu && (
                   <div className="overlay-modify-menu">
+                    <p className="overlay-modify-menu-label">語氣</p>
                     <button type="button" onClick={() => handleRetone('colloquial')}>
                       更自然
                     </button>
                     <button type="button" onClick={() => handleRetone('professional')}>
                       更專業
+                    </button>
+                    <div className="overlay-modify-menu-divider" role="separator" />
+                    <p className="overlay-modify-menu-label">翻譯為</p>
+                    <button type="button" onClick={() => handleRetarget('en')}>
+                      英文
+                    </button>
+                    <button type="button" onClick={() => handleRetarget('ko')}>
+                      韓文
+                    </button>
+                    <button type="button" onClick={() => handleRetarget('ja')}>
+                      日文
                     </button>
                   </div>
                 )}

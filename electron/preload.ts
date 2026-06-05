@@ -6,6 +6,7 @@ import type {
   HotkeyBinding,
   MemberProfile,
   RetoneOption,
+  TranslationTargetLang,
   ScreenRect,
   SessionInfo,
   TranslateErrorPayload,
@@ -24,7 +25,11 @@ export interface ElectronAPI {
   setOverlayPosition: (x: number, y: number) => Promise<void>
   pasteTranslation: (text: string) => Promise<void>
   activateSelectionTranslate: () => void
-  retoneTranslation: (original: string, tone: RetoneOption) => Promise<void>
+  dismissSelectionTrigger: () => void
+  retoneTranslation: (
+    original: string,
+    options: { tone?: RetoneOption; targetLang?: TranslationTargetLang }
+  ) => Promise<void>
   getSettings: () => Promise<AppSettings>
   saveSettings: (settings: Partial<AppSettings>) => Promise<AppSettings>
   captureHotkey: () => Promise<HotkeyBinding>
@@ -73,7 +78,11 @@ const api: ElectronAPI = {
   activateSelectionTranslate: () => {
     ipcRenderer.send('selection:activate')
   },
-  retoneTranslation: (original, tone) => ipcRenderer.invoke('overlay:retone', { original, tone }),
+  dismissSelectionTrigger: () => {
+    ipcRenderer.send('selection:dismiss')
+  },
+  retoneTranslation: (original, options) =>
+    ipcRenderer.invoke('overlay:retone', { original, ...options }),
   getSettings: () => ipcRenderer.invoke('settings:get'),
   saveSettings: (settings) => ipcRenderer.invoke('settings:save', settings),
   captureHotkey: () => ipcRenderer.invoke('hotkey:capture'),

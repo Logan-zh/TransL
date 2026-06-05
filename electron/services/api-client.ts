@@ -172,12 +172,13 @@ export function logout(): void {
 export async function translateTextApi(
   text: string,
   direction: 'en-to-zh' | 'zh-to-en',
-  tone: 'default' | 'colloquial' | 'professional' = 'default'
+  tone: 'default' | 'colloquial' | 'professional' = 'default',
+  targetLang?: 'en' | 'ko' | 'ja'
 ): Promise<string> {
   await ensureAuthenticated()
   const result = await request<{ translation: string }>('/api/translate/text', {
     method: 'POST',
-    body: JSON.stringify({ text, direction, tone })
+    body: JSON.stringify({ text, direction, tone, ...(targetLang ? { targetLang } : {}) })
   })
   return result.translation
 }
@@ -206,12 +207,15 @@ export async function translateImageApi(
 
 export async function retoneApi(
   original: string,
-  tone: 'colloquial' | 'professional'
+  options: {
+    tone?: 'colloquial' | 'professional'
+    targetLang?: 'en' | 'ko' | 'ja'
+  }
 ): Promise<string> {
   await ensureAuthenticated()
   const result = await request<{ translation: string }>('/api/translate/retone', {
     method: 'POST',
-    body: JSON.stringify({ original, tone })
+    body: JSON.stringify({ original, ...options })
   })
   return result.translation
 }

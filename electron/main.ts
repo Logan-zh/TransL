@@ -47,7 +47,13 @@ import {
 } from './services/selection-listener'
 import type { ScreenRect } from './services/config'
 import { createTranslationProvider } from './services/translation'
-import type { OverlayMode, RetoneOption, SessionInfo, TranslationTone } from './services/config'
+import type {
+  OverlayMode,
+  RetoneOption,
+  SessionInfo,
+  TranslationTargetLang,
+  TranslationTone
+} from './services/config'
 import { getSettings, saveSettings, applyStoredAutoLaunch, hasLegacyApiKeys } from './services/settings-store'
 import { DEFAULT_HOTKEYS } from './services/config'
 import { hasStoredSession } from './services/auth-store'
@@ -65,7 +71,10 @@ import { checkForDesktopUpdate } from './services/release-check'
 
 const OVERLAY_WIDTH = 420
 const OVERLAY_MAX_HEIGHT = 460
-const SELECTION_TRIGGER_SIZE = 32
+const SELECTION_TRIGGER_BTN = 32
+const SELECTION_TRIGGER_GAP = 4
+const SELECTION_TRIGGER_WIDTH = SELECTION_TRIGGER_BTN * 2 + SELECTION_TRIGGER_GAP
+const SELECTION_TRIGGER_HEIGHT = SELECTION_TRIGGER_BTN
 const CURSOR_OFFSET = 16
 
 let overlayWindow: BrowserWindow | null = null
@@ -168,8 +177,8 @@ function createSelectionTriggerWindow(): BrowserWindow {
   }
 
   selectionTriggerWindow = new BrowserWindow({
-    width: SELECTION_TRIGGER_SIZE,
-    height: SELECTION_TRIGGER_SIZE,
+    width: SELECTION_TRIGGER_WIDTH,
+    height: SELECTION_TRIGGER_HEIGHT,
     show: false,
     frame: false,
     transparent: true,
@@ -214,13 +223,11 @@ function hideSelectionTriggerWindow(): void {
 function clampSelectionTriggerPosition(x: number, y: number): { x: number; y: number } {
   const display = screen.getDisplayNearestPoint({ x, y })
   const area = display.workArea
-  const size = SELECTION_TRIGGER_SIZE
-
   let px = x + 10
-  let py = y - size - 8
+  let py = y + 8
 
-  px = Math.max(area.x, Math.min(px, area.x + area.width - size))
-  py = Math.max(area.y, Math.min(py, area.y + area.height - size))
+  px = Math.max(area.x, Math.min(px, area.x + area.width - SELECTION_TRIGGER_WIDTH))
+  py = Math.max(area.y, Math.min(py, area.y + area.height - SELECTION_TRIGGER_HEIGHT))
 
   return { x: px, y: py }
 }
@@ -232,8 +239,8 @@ function showSelectionTriggerWindow(x: number, y: number): void {
   win.setBounds({
     x: position.x,
     y: position.y,
-    width: SELECTION_TRIGGER_SIZE,
-    height: SELECTION_TRIGGER_SIZE
+    width: SELECTION_TRIGGER_WIDTH,
+    height: SELECTION_TRIGGER_HEIGHT
   })
   win.showInactive()
 }
@@ -431,11 +438,15 @@ function showOverlayError(message: string): void {
   win.webContents.send('translate:error', { message })
 }
 
-async function translateText(original: string, tone: TranslationTone = 'default'): Promise<string> {
+async function translateText(
+  original: string,
+  tone: TranslationTone = 'default',
+  targetLang?: TranslationTargetLang
+): Promise<string> {
   await ensureAuthenticated()
   const direction = detectTranslationDirection(original)
   const provider = createTranslationProvider()
-  return provider.translate(original, direction, tone)
+  return provider.translate(original, direction, tone, targetLang)
 }
 
 async function handleTranslateOverlay(
@@ -497,16 +508,24 @@ async function handleSelectionIconTranslate(): Promise<void> {
   }
 }
 
-async function handleRetone(original: string, tone: RetoneOption): Promise<void> {
+async function handleRetone(
+  original: string,
+  options: { tone?: RetoneOption; targetLang?: TranslationTargetLang }
+): Promise<void> {
   if (isTranslating) {
     return
   }
 
   isTranslating = true
-  showOverlayLoading(original, '調整語氣中…', false)
+  const loadingMessage = options.targetLang ? '翻譯中…' : '調整語氣中…'
+  showOverlayLoading(original, loadingMessage, false)
 
   try {
-    const translation = await translateText(original, tone)
+    const translation = await translateText(
+      original,
+      options.tone ?? 'default',
+      options.targetLang
+    )
 
     if (lastScreenshotNativeImage && lastImageBlockLayout) {
       const blocks = assignTranslationToBlocks(
@@ -717,13 +736,30 @@ function setupIpc(): void {
     void handleSelectionIconTranslate()
   })
 
+  ipcMain.on('selection:dismiss', () => {
+    hideSelectionTriggerWindow()
+  })
+
   ipcMain.handle('overlay:paste', async (_event, text: string) => {
     await handlePasteTranslation(text)
   })
 
-  ipcMain.handle('overlay:retone', async (_event, payload: { original: string; tone: RetoneOption }) => {
-    await handleRetone(payload.original, payload.tone)
-  })
+  ipcMain.handle(
+    'overlay:retone',
+    async (
+      _event,
+      payload: {
+        original: string
+        tone?: RetoneOption
+        targetLang?: TranslationTargetLang
+      }
+    ) => {
+      await handleRetone(payload.original, {
+        tone: payload.tone,
+        targetLang: payload.targetLang
+      })
+    }
+  )
 
   ipcMain.handle('settings:get', () => getSettings())
 

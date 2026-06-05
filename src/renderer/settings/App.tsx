@@ -323,7 +323,7 @@ export default function App(): JSX.Element {
             <span>拖曳選取後顯示翻譯小圖示</span>
           </label>
           <p className="settings-hint settings-hint-indent">
-            僅在滑鼠拖曳框選後顯示；點擊圖示才複製並翻譯，不會自動讀取剪貼簿。
+            拖曳框選或雙擊選字後顯示（雙擊會以無障礙 API 判斷是否為文字選取，開啟 App 不會顯示）；點翻譯才複製，不會自動讀剪貼簿。
           </p>
         </section>
 
