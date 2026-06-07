@@ -9,6 +9,10 @@ import {
   VK_SHIFT
 } from './hotkey-codes'
 import {
+  isWindowsScreenshotShortcutGuarded,
+  updateWindowsScreenshotGuard
+} from './windows-shortcut-guard'
+import {
   DOUBLE_TAP_MS,
   POLL_INTERVAL_MS,
   TRIGGER_COOLDOWN_MS
@@ -78,7 +82,16 @@ function ensurePolling(): void {
   }
 
   pollTimer = setInterval(() => {
+    updateWindowsScreenshotGuard()
     const now = Date.now()
+
+    if (isWindowsScreenshotShortcutGuarded()) {
+      for (const state of states) {
+        state.lastPressTime = 0
+        state.wasKeyDown = isKeyDown(state.vk)
+      }
+      return
+    }
 
     for (const state of states) {
       const keyDown = isKeyDown(state.vk)

@@ -1,4 +1,8 @@
 import { DOUBLE_TAP_MS, POLL_INTERVAL_MS, TRIGGER_COOLDOWN_MS } from './hotkey-constants'
+import {
+  isWindowsScreenshotShortcutGuarded,
+  updateWindowsScreenshotGuard
+} from './windows-shortcut-guard'
 import { getClipboardSequenceNumber } from './win32'
 
 let pollTimer: NodeJS.Timeout | null = null
@@ -29,13 +33,21 @@ export function startDoubleCopyListener(handler: () => void): void {
   lastTriggerTime = 0
 
   pollTimer = setInterval(() => {
+    if (updateWindowsScreenshotGuard()) {
+      lastChangeTime = 0
+      lastSeq = getClipboardSequenceNumber()
+    }
+
     const seq = getClipboardSequenceNumber()
     if (seq === lastSeq) {
       return
     }
 
-    if (suppressed) {
+    if (suppressed || isWindowsScreenshotShortcutGuarded()) {
       lastSeq = seq
+      if (isWindowsScreenshotShortcutGuarded()) {
+        lastChangeTime = 0
+      }
       return
     }
 
