@@ -1,5 +1,6 @@
 export type TranslationDirection = 'en-to-zh' | 'zh-to-en'
 export type TranslationTone = 'default' | 'colloquial' | 'professional'
+export type TranslationTargetLang = 'zh' | 'en' | 'ko' | 'ja'
 export type RetoneOption = 'colloquial' | 'professional'
 export type OverlayMode = 'translate' | 'reply'
 
