@@ -1,20 +1,6 @@
-const CHINESE_CHAR_PATTERN = /[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]/
-const HANGUL_PATTERN = /[\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F]/
-const JAPANESE_KANA_PATTERN = /[\u3040-\u309F\u30A0-\u30FF]/
-const MAX_SPEECH_CHARS = 300
+import { detectSpeechLang } from '@transl/shared'
 
-export function detectSpeechLang(text: string): 'zh-TW' | 'en-US' | 'ko-KR' | 'ja-JP' {
-  if (CHINESE_CHAR_PATTERN.test(text)) {
-    return 'zh-TW'
-  }
-  if (HANGUL_PATTERN.test(text)) {
-    return 'ko-KR'
-  }
-  if (JAPANESE_KANA_PATTERN.test(text)) {
-    return 'ja-JP'
-  }
-  return 'en-US'
-}
+const MAX_SPEECH_CHARS = 300
 
 function prepareSpeechText(text: string): string {
   const trimmed = text.trim()

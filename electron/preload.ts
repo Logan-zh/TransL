@@ -14,6 +14,7 @@ import type {
   TranslateOverlayHotkey,
   TranslateResultPayload
 } from './services/config'
+import { IPC } from './services/ipc-channels'
 
 export interface ElectronAPI {
   onTranslateLoading: (callback: (payload: TranslateLoadingPayload) => void) => () => void
@@ -49,67 +50,67 @@ const api: ElectronAPI = {
     const listener = (_event: Electron.IpcRendererEvent, payload: TranslateLoadingPayload): void => {
       callback(payload)
     }
-    ipcRenderer.on('translate:loading', listener)
-    return () => ipcRenderer.removeListener('translate:loading', listener)
+    ipcRenderer.on(IPC.TRANSLATE_LOADING, listener)
+    return () => ipcRenderer.removeListener(IPC.TRANSLATE_LOADING, listener)
   },
   onTranslateResult: (callback) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: TranslateResultPayload): void => {
       callback(payload)
     }
-    ipcRenderer.on('translate:result', listener)
-    return () => ipcRenderer.removeListener('translate:result', listener)
+    ipcRenderer.on(IPC.TRANSLATE_RESULT, listener)
+    return () => ipcRenderer.removeListener(IPC.TRANSLATE_RESULT, listener)
   },
   onTranslateError: (callback) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: TranslateErrorPayload): void => {
       callback(payload)
     }
-    ipcRenderer.on('translate:error', listener)
-    return () => ipcRenderer.removeListener('translate:error', listener)
+    ipcRenderer.on(IPC.TRANSLATE_ERROR, listener)
+    return () => ipcRenderer.removeListener(IPC.TRANSLATE_ERROR, listener)
   },
   closeOverlay: () => {
-    ipcRenderer.send('overlay:close')
+    ipcRenderer.send(IPC.OVERLAY_CLOSE)
   },
   setOverlayDragging: (active) => {
-    ipcRenderer.send(active ? 'overlay:drag-start' : 'overlay:drag-end')
+    ipcRenderer.send(active ? IPC.OVERLAY_DRAG_START : IPC.OVERLAY_DRAG_END)
   },
-  getOverlayPosition: () => ipcRenderer.invoke('overlay:get-position'),
-  setOverlayPosition: (x, y) => ipcRenderer.invoke('overlay:set-position', x, y),
-  pasteTranslation: (text) => ipcRenderer.invoke('overlay:paste', text),
+  getOverlayPosition: () => ipcRenderer.invoke(IPC.OVERLAY_GET_POSITION),
+  setOverlayPosition: (x, y) => ipcRenderer.invoke(IPC.OVERLAY_SET_POSITION, x, y),
+  pasteTranslation: (text) => ipcRenderer.invoke(IPC.OVERLAY_PASTE, text),
   activateSelectionTranslate: () => {
-    ipcRenderer.send('selection:activate')
+    ipcRenderer.send(IPC.SELECTION_ACTIVATE)
   },
   dismissSelectionTrigger: () => {
-    ipcRenderer.send('selection:dismiss')
+    ipcRenderer.send(IPC.SELECTION_DISMISS)
   },
   retoneTranslation: (original, options) =>
-    ipcRenderer.invoke('overlay:retone', { original, ...options }),
-  getSettings: () => ipcRenderer.invoke('settings:get'),
-  saveSettings: (settings) => ipcRenderer.invoke('settings:save', settings),
-  captureHotkey: () => ipcRenderer.invoke('hotkey:capture'),
-  getSession: () => ipcRenderer.invoke('auth:session'),
+    ipcRenderer.invoke(IPC.OVERLAY_RETONE, { original, ...options }),
+  getSettings: () => ipcRenderer.invoke(IPC.SETTINGS_GET),
+  saveSettings: (settings) => ipcRenderer.invoke(IPC.SETTINGS_SAVE, settings),
+  captureHotkey: () => ipcRenderer.invoke(IPC.HOTKEY_CAPTURE),
+  getSession: () => ipcRenderer.invoke(IPC.AUTH_SESSION),
   onSessionChanged: (callback) => {
     const listener = (_event: Electron.IpcRendererEvent, session: SessionInfo): void => {
       callback(session)
     }
-    ipcRenderer.on('session:changed', listener)
-    return () => ipcRenderer.removeListener('session:changed', listener)
+    ipcRenderer.on(IPC.SESSION_CHANGED, listener)
+    return () => ipcRenderer.removeListener(IPC.SESSION_CHANGED, listener)
   },
-  getAppVersion: () => ipcRenderer.invoke('app:version'),
-  login: (payload) => ipcRenderer.invoke('auth:login', payload),
-  logout: () => ipcRenderer.invoke('auth:logout'),
-  openLogin: () => ipcRenderer.send('auth:open-login'),
+  getAppVersion: () => ipcRenderer.invoke(IPC.APP_VERSION),
+  login: (payload) => ipcRenderer.invoke(IPC.AUTH_LOGIN, payload),
+  logout: () => ipcRenderer.invoke(IPC.AUTH_LOGOUT),
+  openLogin: () => ipcRenderer.send(IPC.AUTH_OPEN_LOGIN),
   onCaptureInit: (callback) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: CaptureInitPayload): void => {
       callback(payload)
     }
-    ipcRenderer.on('capture:init', listener)
-    return () => ipcRenderer.removeListener('capture:init', listener)
+    ipcRenderer.on(IPC.CAPTURE_INIT, listener)
+    return () => ipcRenderer.removeListener(IPC.CAPTURE_INIT, listener)
   },
   completeCapture: (bounds) => {
-    ipcRenderer.send('capture:complete', bounds)
+    ipcRenderer.send(IPC.CAPTURE_COMPLETE, bounds)
   },
   cancelCapture: () => {
-    ipcRenderer.send('capture:cancel')
+    ipcRenderer.send(IPC.CAPTURE_CANCEL)
   }
 }
 

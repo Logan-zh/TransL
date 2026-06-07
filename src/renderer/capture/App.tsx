@@ -1,15 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
+import type { ScreenRect } from '@desktop'
 
 interface Point {
   x: number
   y: number
-}
-
-interface SelectionRect {
-  x: number
-  y: number
-  width: number
-  height: number
 }
 
 const MIN_SELECTION = 10
@@ -37,7 +31,7 @@ export default function App(): JSX.Element {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
-  const selection: SelectionRect | null =
+  const selection: ScreenRect | null =
     start && current
       ? {
           x: Math.min(start.x, current.x),
@@ -47,7 +41,7 @@ export default function App(): JSX.Element {
         }
       : null
 
-  const finishSelection = (rect: SelectionRect): void => {
+  const finishSelection = (rect: ScreenRect): void => {
     if (rect.width < MIN_SELECTION || rect.height < MIN_SELECTION) {
       return
     }

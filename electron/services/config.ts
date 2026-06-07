@@ -1,6 +1,10 @@
-export type TranslationDirection = 'en-to-zh' | 'zh-to-en'
-export type TranslationTone = 'default' | 'colloquial' | 'professional'
-export type TranslationTargetLang = 'zh' | 'en' | 'ko' | 'ja'
+export type {
+  MemberProfile,
+  TranslationDirection,
+  TranslationTargetLang,
+  TranslationTone
+} from '@transl/shared'
+
 export type RetoneOption = 'colloquial' | 'professional'
 export type OverlayMode = 'translate' | 'reply'
 
@@ -73,18 +77,6 @@ export interface AuthTokens {
   accessToken: string
   refreshToken: string
   expiresAt: number
-}
-
-export interface MemberProfile {
-  username: string
-  displayName: string | null
-  status: string
-  provider: {
-    id: string
-    name: string
-    provider: string
-    model: string
-  } | null
 }
 
 export interface SessionInfo {

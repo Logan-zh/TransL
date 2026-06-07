@@ -1,11 +1,5 @@
 import { desktopCapturer, nativeImage, screen } from 'electron'
-
-export interface ScreenRect {
-  x: number
-  y: number
-  width: number
-  height: number
-}
+import type { ScreenRect } from './config'
 
 export async function captureScreenRegion(bounds: ScreenRect): Promise<Electron.NativeImage> {
   if (bounds.width < 1 || bounds.height < 1) {

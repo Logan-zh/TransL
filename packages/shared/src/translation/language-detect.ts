@@ -1,4 +1,4 @@
-import { TranslationDirection } from './config'
+import type { TranslationDirection } from './translation.types'
 
 /** 繁體／簡體中文（含擴展區） */
 export const CHINESE_CHAR_PATTERN = /[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]/

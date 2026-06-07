@@ -1,106 +1,40 @@
 import {
+  ApiError,
+  createHttpClient,
+  decodeJwtExpiry,
+  refreshTokensOrThrow
+} from '@transl/shared'
+import {
   clearAuthTokens,
   getAuthTokens,
   isAccessTokenValid,
   saveAuthTokens
 } from './auth-store'
-import type { AuthTokens, MemberProfile } from './config'
+import type { ImageTranslationResult, TranslationDirection, TranslationTargetLang, TranslationTone } from '@transl/shared'
+import type { AuthTokens, MemberProfile, RetoneOption } from './config'
 import { getApiBaseUrl } from './api-config'
 
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    readonly code?: string,
-    readonly status?: number
-  ) {
-    super(message)
-    this.name = 'ApiError'
-  }
-}
+export { ApiError }
 
-function getBaseUrl(): string {
-  return getApiBaseUrl()
-}
+const http = createHttpClient({
+  resolveUrl: (path) => `${getApiBaseUrl()}${path}`,
+  getAccessToken: () => getAuthTokens()?.accessToken,
+  getRefreshToken: () => getAuthTokens()?.refreshToken,
+  onTokensRefreshed: (accessToken, refreshToken) => {
+    saveAuthTokens({
+      accessToken,
+      refreshToken,
+      expiresAt: decodeJwtExpiry(accessToken)
+    })
+  },
+  onAuthFailure: () => clearAuthTokens(),
+  formatNotFound: (message, url) =>
+    `${message}（${url}）— 請確認 TRANSL_API_URL 指向 NestJS API（:3000），且 nginx 有轉發 /api/`,
+  quotaExceededHint: ' 請至官網會員入口查看本月配額。'
+})
 
-async function parseError(response: Response, requestUrl: string): Promise<ApiError> {
-  const body = (await response.json().catch(() => ({}))) as {
-    message?: string | string[] | { code?: string; message?: string }
-    code?: string
-  }
-
-  if (typeof body.message === 'object' && body.message !== null && !Array.isArray(body.message)) {
-    const nested = body.message
-    return new ApiError(
-      formatErrorMessage(nested.message ?? '請求失敗', response.status, requestUrl),
-      nested.code,
-      response.status
-    )
-  }
-
-  const message = Array.isArray(body.message)
-    ? body.message.join(', ')
-    : body.message ?? `HTTP ${response.status}`
-  const code =
-    typeof body.message === 'object' && body.message !== null && !Array.isArray(body.message)
-      ? body.message.code
-      : body.code
-  const hint =
-    code === 'QUOTA_EXCEEDED' ? ' 請至官網會員入口查看本月配額。' : ''
-  return new ApiError(
-    formatErrorMessage(`${message}${hint}`, response.status, requestUrl),
-    code,
-    response.status
-  )
-}
-
-function formatErrorMessage(message: string, status: number, requestUrl: string): string {
-  if (status === 404) {
-    return `${message}（${requestUrl}）— 請確認 TRANSL_API_URL 指向 NestJS API（:3000），且 nginx 有轉發 /api/`
-  }
-  return message
-}
-
-async function request<T>(
-  path: string,
-  options: RequestInit = {},
-  retry = true
-): Promise<T> {
-  const tokens = getAuthTokens()
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string> | undefined)
-  }
-  if (tokens?.accessToken) {
-    headers.Authorization = `Bearer ${tokens.accessToken}`
-  }
-
-  const url = `${getBaseUrl()}${path}`
-  const response = await fetch(url, {
-    ...options,
-    headers
-  })
-
-  if (response.status === 401 && retry && tokens?.refreshToken) {
-    await refreshTokens()
-    return request<T>(path, options, false)
-  }
-
-  if (!response.ok) {
-    throw await parseError(response, url)
-  }
-
-  return response.json() as Promise<T>
-}
-
-function decodeExpiry(accessToken: string): number {
-  try {
-    const payload = JSON.parse(
-      Buffer.from(accessToken.split('.')[1] ?? '', 'base64url').toString('utf8')
-    ) as { exp?: number }
-    return payload.exp ? payload.exp * 1000 : Date.now() + 3_600_000
-  } catch {
-    return Date.now() + 3_600_000
-  }
+async function request<T>(path: string, options: RequestInit = {}, retry = true): Promise<T> {
+  return http.request<T>(path, options, retry)
 }
 
 export async function login(username: string, password: string): Promise<MemberProfile> {
@@ -108,15 +42,19 @@ export async function login(username: string, password: string): Promise<MemberP
     accessToken: string
     refreshToken: string
     member: { username: string }
-  }>('/api/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ username, password })
-  }, false)
+  }>(
+    '/api/auth/login',
+    {
+      method: 'POST',
+      body: JSON.stringify({ username, password })
+    },
+    false
+  )
 
   const tokens: AuthTokens = {
     accessToken: result.accessToken,
     refreshToken: result.refreshToken,
-    expiresAt: decodeExpiry(result.accessToken)
+    expiresAt: decodeJwtExpiry(result.accessToken)
   }
   saveAuthTokens(tokens)
   return getProfile()
@@ -129,22 +67,9 @@ export async function refreshTokens(): Promise<void> {
     throw new ApiError('請重新登入', 'UNAUTHORIZED', 401)
   }
 
-  const result = await fetch(`${getBaseUrl()}/api/auth/refresh`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken: tokens.refreshToken })
-  })
-
-  if (!result.ok) {
-    clearAuthTokens()
-    throw new ApiError('登入已過期，請重新登入', 'UNAUTHORIZED', 401)
-  }
-
-  const data = (await result.json()) as { accessToken: string; refreshToken: string }
-  saveAuthTokens({
-    accessToken: data.accessToken,
-    refreshToken: data.refreshToken,
-    expiresAt: decodeExpiry(data.accessToken)
+  await refreshTokensOrThrow(http, {
+    missing: '請重新登入',
+    expired: '登入已過期，請重新登入'
   })
 }
 
@@ -171,9 +96,9 @@ export function logout(): void {
 
 export async function translateTextApi(
   text: string,
-  direction: 'en-to-zh' | 'zh-to-en',
-  tone: 'default' | 'colloquial' | 'professional' = 'default',
-  targetLang?: 'zh' | 'en' | 'ko' | 'ja'
+  direction: TranslationDirection,
+  tone: TranslationTone = 'default',
+  targetLang?: TranslationTargetLang
 ): Promise<string> {
   await ensureAuthenticated()
   const result = await request<{ translation: string }>('/api/translate/text', {
@@ -185,19 +110,8 @@ export async function translateTextApi(
 
 export async function translateImageApi(
   imageBase64: string,
-  tone: 'default' | 'colloquial' | 'professional' = 'default'
-): Promise<{
-  original: string
-  translation: string
-  blocks: Array<{
-    original: string
-    translation: string
-    x: number
-    y: number
-    width: number
-    height: number
-  }>
-}> {
+  tone: TranslationTone = 'default'
+): Promise<ImageTranslationResult> {
   await ensureAuthenticated()
   return request('/api/translate/image', {
     method: 'POST',
@@ -208,8 +122,8 @@ export async function translateImageApi(
 export async function retoneApi(
   original: string,
   options: {
-    tone?: 'colloquial' | 'professional'
-    targetLang?: 'zh' | 'en' | 'ko' | 'ja'
+    tone?: RetoneOption
+    targetLang?: TranslationTargetLang
   }
 ): Promise<string> {
   await ensureAuthenticated()

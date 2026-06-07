@@ -1,4 +1,3 @@
-import { load } from 'koffi'
 import type { HotkeyBinding } from './config'
 import {
   getVkForKey,
@@ -9,17 +8,14 @@ import {
   VK_RWIN,
   VK_SHIFT
 } from './hotkey-codes'
+import {
+  DOUBLE_TAP_MS,
+  POLL_INTERVAL_MS,
+  TRIGGER_COOLDOWN_MS
+} from './hotkey-constants'
+import { isKeyDown } from './win32'
 
-const DOUBLE_TAP_MS = 800
-const POLL_INTERVAL_MS = 40
-const TRIGGER_COOLDOWN_MS = 400
-
-const user32 = load('user32.dll')
-const GetAsyncKeyState = user32.func('int16 __stdcall GetAsyncKeyState(int32 vKey)')
-
-export function isKeyDown(vk: number): boolean {
-  return (GetAsyncKeyState(vk) & 0x8000) !== 0
-}
+export { isKeyDown } from './win32'
 
 function modifiersMatch(binding: HotkeyBinding): boolean {
   if (isKeyDown(VK_LWIN) || isKeyDown(VK_RWIN)) {

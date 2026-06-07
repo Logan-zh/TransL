@@ -1,17 +1,12 @@
-import { load } from 'koffi'
 import { delay } from './clipboard'
-
-const user32 = load('user32.dll')
-
-const GetForegroundWindow = user32.func('void * __stdcall GetForegroundWindow()')
-const SetForegroundWindow = user32.func('int __stdcall SetForegroundWindow(void * hWnd)')
-const GetWindowThreadProcessId = user32.func(
-  'uint32 __stdcall GetWindowThreadProcessId(void * hWnd, _Out_ uint32 * lpdwProcessId)'
-)
-const keybd_event = user32.func('void __stdcall keybd_event(uchar bVk, uchar bScan, uint dwFlags, ulong dwExtraInfo)')
-
-const KEYEVENTF_KEYUP = 0x0002
-const VK_MENU = 0x12
+import { VK_MENU } from './hotkey-codes'
+import {
+  GetForegroundWindow,
+  GetWindowThreadProcessId,
+  KEYEVENTF_KEYUP,
+  keybd_event,
+  SetForegroundWindow
+} from './win32'
 
 let savedTargetWindow: unknown = null
 let savedTargetProcessId: number | null = null
@@ -70,4 +65,5 @@ export async function restoreTargetWindow(): Promise<boolean> {
 
 export function clearTargetWindow(): void {
   savedTargetWindow = null
+  savedTargetProcessId = null
 }

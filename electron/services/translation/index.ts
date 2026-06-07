@@ -1,5 +1,7 @@
 import { createBackendTranslationProvider } from './backend'
-import { TranslationProvider } from './types'
+import type { TranslationProvider } from './provider'
+
+export type { TranslationProvider } from './provider'
 
 export function createTranslationProvider(): TranslationProvider {
   return createBackendTranslationProvider()

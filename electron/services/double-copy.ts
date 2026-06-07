@@ -1,11 +1,5 @@
-import { load } from 'koffi'
-
-const DOUBLE_COPY_MS = 800
-const POLL_INTERVAL_MS = 40
-const TRIGGER_COOLDOWN_MS = 400
-
-const user32 = load('user32.dll')
-const getClipboardSequenceNumber = user32.func('uint32 GetClipboardSequenceNumber()')
+import { DOUBLE_TAP_MS, POLL_INTERVAL_MS, TRIGGER_COOLDOWN_MS } from './hotkey-constants'
+import { getClipboardSequenceNumber } from './win32'
 
 let pollTimer: NodeJS.Timeout | null = null
 let lastSeq = 0
@@ -46,7 +40,7 @@ export function startDoubleCopyListener(handler: () => void): void {
     }
 
     const now = Date.now()
-    if (lastChangeTime > 0 && now - lastChangeTime <= DOUBLE_COPY_MS) {
+    if (lastChangeTime > 0 && now - lastChangeTime <= DOUBLE_TAP_MS) {
       if (now - lastTriggerTime >= TRIGGER_COOLDOWN_MS) {
         lastTriggerTime = now
         lastChangeTime = 0

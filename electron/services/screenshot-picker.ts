@@ -1,17 +1,7 @@
 import { BrowserWindow, screen } from 'electron'
 import { join } from 'path'
-
-export interface ScreenRect {
-  x: number
-  y: number
-  width: number
-  height: number
-}
-
-export interface CaptureInitPayload {
-  offsetX: number
-  offsetY: number
-}
+import type { CaptureInitPayload, ScreenRect } from './config'
+import { IPC } from './ipc-channels'
 
 let pickerWindow: BrowserWindow | null = null
 let pickerResolve: ((value: ScreenRect | null) => void) | null = null
@@ -98,7 +88,7 @@ export function openScreenshotPicker(): Promise<ScreenRect | null> {
     }
 
     pickerWindow.webContents.once('did-finish-load', () => {
-      pickerWindow?.webContents.send('capture:init', initPayload)
+      pickerWindow?.webContents.send(IPC.CAPTURE_INIT, initPayload)
       pickerWindow?.show()
       pickerWindow?.focus()
     })

@@ -1,4 +1,6 @@
 node_modules/
+packages/shared/node_modules/
+packages/shared/dist/
 out/
 release/
 dist/

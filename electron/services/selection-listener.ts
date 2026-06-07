@@ -1,20 +1,17 @@
 import { screen } from 'electron'
-import { load } from 'koffi'
 import { delay } from './clipboard'
+import { POLL_INTERVAL_MS } from './hotkey-constants'
 import { getForegroundSettleDelayMs, hasTextSelectionAtPoint } from './uia-selection'
 import { captureTargetWindow, hasForegroundContextChanged } from './window-focus'
+import { isKeyDown } from './win32'
 
-const POLL_INTERVAL_MS = 40
 const MIN_DRAG_PX = 4
 const DOUBLE_CLICK_MS = 500
 const MAX_CLICK_MOVE_PX = 10
 const VK_LBUTTON = 0x01
 
-const user32 = load('user32.dll')
-const GetAsyncKeyState = user32.func('int16 __stdcall GetAsyncKeyState(int32 vKey)')
-
 function isLeftButtonDown(): boolean {
-  return (GetAsyncKeyState(VK_LBUTTON) & 0x8000) !== 0
+  return isKeyDown(VK_LBUTTON)
 }
 
 export interface SelectionListenerOptions {

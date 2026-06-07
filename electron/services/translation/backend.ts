@@ -1,7 +1,7 @@
 import { NativeImage } from 'electron'
-import { TranslationDirection, TranslationTargetLang, TranslationTone } from '../config'
+import type { ImageTranslationResult, TranslationDirection, TranslationTargetLang, TranslationTone } from '@transl/shared'
 import { translateImageApi, translateTextApi } from '../api-client'
-import { ImageTranslationResult, TranslationProvider } from './types'
+import type { TranslationProvider } from './provider'
 
 export function createBackendTranslationProvider(): TranslationProvider {
   return {

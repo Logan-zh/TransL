@@ -4,11 +4,11 @@ import type {
   HotkeyBinding,
   SessionInfo,
   TranslateOverlayHotkey
-} from '../../../electron/services/config'
+} from '@desktop'
 import {
   DEFAULT_HOTKEYS,
   DEFAULT_HOTKEY_TRANSLATE_PASTE
-} from '../../../electron/services/config'
+} from '@desktop'
 import { formatHotkeyBinding, normalizeHotkeyKey } from '../../../electron/services/hotkey-codes'
 
 function cloneBinding(binding: HotkeyBinding): HotkeyBinding {

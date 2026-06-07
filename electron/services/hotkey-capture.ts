@@ -2,9 +2,9 @@ import type { HotkeyBinding } from './config'
 import { getVkForKey, VK_CONTROL, VK_MENU, VK_SHIFT } from './hotkey-codes'
 import { isKeyDown, waitForAllKeysReleased } from './hotkey-listener'
 
-const DOUBLE_TAP_MS = 800
+import { DOUBLE_TAP_MS, HOTKEY_CAPTURE_HOTKEY_CAPTURE_POLL_MS } from './hotkey-constants'
+
 const CAPTURE_TIMEOUT_MS = 10000
-const POLL_MS = 30
 
 function readModifiers(): Pick<HotkeyBinding, 'ctrl' | 'alt' | 'shift'> {
   return {
@@ -42,7 +42,7 @@ export async function captureHotkeyBinding(): Promise<HotkeyBinding> {
   while (Date.now() < deadline) {
     const key = findPressedMainKey()
     if (!key) {
-      await new Promise((r) => setTimeout(r, POLL_MS))
+      await new Promise((r) => setTimeout(r, HOTKEY_CAPTURE_POLL_MS))
       continue
     }
 
@@ -52,7 +52,7 @@ export async function captureHotkeyBinding(): Promise<HotkeyBinding> {
       if (Date.now() > deadline) {
         throw new Error('錄製逾時，請再試一次')
       }
-      await new Promise((r) => setTimeout(r, POLL_MS))
+      await new Promise((r) => setTimeout(r, HOTKEY_CAPTURE_POLL_MS))
     }
 
     const secondDeadline = Date.now() + DOUBLE_TAP_MS
@@ -60,7 +60,7 @@ export async function captureHotkeyBinding(): Promise<HotkeyBinding> {
       const again = findPressedMainKey()
       if (again === key) {
         while (isKeyDown(getVkForKey(key)!)) {
-          await new Promise((r) => setTimeout(r, POLL_MS))
+          await new Promise((r) => setTimeout(r, HOTKEY_CAPTURE_POLL_MS))
         }
         await waitForAllKeysReleased(1000)
         return {
@@ -69,7 +69,7 @@ export async function captureHotkeyBinding(): Promise<HotkeyBinding> {
           doubleTap: true
         }
       }
-      await new Promise((r) => setTimeout(r, POLL_MS))
+      await new Promise((r) => setTimeout(r, HOTKEY_CAPTURE_POLL_MS))
     }
 
     await waitForAllKeysReleased(1000)

@@ -1,6 +1,6 @@
 import { nativeImage } from 'electron'
 import sharp from 'sharp'
-import type { TextOverlayBlock } from './translation/types'
+import type { TextOverlayBlock } from '@transl/shared'
 
 function escapeXml(text: string): string {
   return text

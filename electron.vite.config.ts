@@ -2,13 +2,24 @@ import { resolve } from 'path'
 import { defineConfig, externalizeDepsPlugin, loadEnv } from 'electron-vite'
 import react from '@vitejs/plugin-react'
 
+const sharedAlias = {
+  '@transl/shared': resolve(__dirname, 'packages/shared/src/index.ts')
+}
+
+const desktopAlias = {
+  '@desktop': resolve(__dirname, 'electron/services/config')
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const apiUrl = env.TRANSL_API_URL || 'http://localhost:3000'
 
   return {
   main: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [externalizeDepsPlugin({ exclude: ['@transl/shared'] })],
+    resolve: {
+      alias: sharedAlias
+    },
     define: {
       __TRANSL_API_URL__: JSON.stringify(apiUrl)
     },
@@ -21,7 +32,10 @@ export default defineConfig(({ mode }) => {
     }
   },
   preload: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [externalizeDepsPlugin({ exclude: ['@transl/shared'] })],
+    resolve: {
+      alias: sharedAlias
+    },
     build: {
       rollupOptions: {
         input: {
@@ -34,7 +48,9 @@ export default defineConfig(({ mode }) => {
     root: resolve(__dirname, 'src/renderer'),
     resolve: {
       alias: {
-        '@renderer': resolve('src/renderer')
+        '@renderer': resolve('src/renderer'),
+        ...sharedAlias,
+        ...desktopAlias
       }
     },
     plugins: [react()],

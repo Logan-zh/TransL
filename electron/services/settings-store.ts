@@ -9,24 +9,34 @@ import {
   TranslateOverlayHotkey
 } from './config'
 
-interface LegacySettings extends AppSettings {
-  provider?: string
-  openaiApiKey?: string
-  geminiApiKey?: string
-  openaiModel?: string
-  geminiModel?: string
+const LEGACY_KEYS = [
+  'provider',
+  'openaiApiKey',
+  'geminiApiKey',
+  'openaiModel',
+  'geminiModel'
+] as const
+
+const store = new Store<AppSettings>({
+  defaults: DEFAULT_SETTINGS
+})
+
+function purgeLegacyApiKeyFields(): boolean {
+  const raw = store.store as Record<string, unknown>
+  const hadLegacy = Boolean(raw.openaiApiKey || raw.geminiApiKey)
+  for (const key of LEGACY_KEYS) {
+    if (key in raw) {
+      store.delete(key)
+    }
+  }
+  return hadLegacy
 }
 
-const store = new Store<LegacySettings>({
-  defaults: {
-    ...DEFAULT_SETTINGS,
-    provider: 'openai',
-    openaiApiKey: '',
-    geminiApiKey: '',
-    openaiModel: 'gpt-4o-mini',
-    geminiModel: 'gemini-2.0-flash'
-  }
-})
+export const legacyApiKeyDetected = purgeLegacyApiKeyFields()
+
+export function wasLegacyApiKeyDetected(): boolean {
+  return legacyApiKeyDetected
+}
 
 function mergeBinding(stored: Partial<HotkeyBinding> | undefined, fallback: HotkeyBinding): HotkeyBinding {
   if (!stored || typeof stored !== 'object') {
@@ -102,12 +112,6 @@ export function saveSettings(settings: Partial<AppSettings>): AppSettings {
   }
 
   return getSettings()
-}
-
-export function hasLegacyApiKeys(): boolean {
-  const openai = store.get('openaiApiKey', '')
-  const gemini = store.get('geminiApiKey', '')
-  return Boolean(openai || gemini)
 }
 
 export function applyStoredAutoLaunch(): void {

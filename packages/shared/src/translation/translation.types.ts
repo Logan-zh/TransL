@@ -1,4 +1,6 @@
-import { TranslationDirection, TranslationTargetLang, TranslationTone } from '../config'
+export type TranslationDirection = 'en-to-zh' | 'zh-to-en'
+export type TranslationTone = 'default' | 'colloquial' | 'professional'
+export type TranslationTargetLang = 'zh' | 'en' | 'ko' | 'ja'
 
 export interface TextOverlayBlock {
   original: string
@@ -15,14 +17,11 @@ export interface ImageTranslationResult {
   blocks: TextOverlayBlock[]
 }
 
-export interface TranslationProvider {
-  translate(
-    text: string,
-    direction: TranslationDirection,
-    tone?: TranslationTone,
-    targetLang?: TranslationTargetLang
-  ): Promise<string>
-  translateImage(image: Electron.NativeImage, tone?: TranslationTone): Promise<ImageTranslationResult>
+const TARGET_LANG_LABEL: Record<TranslationTargetLang, string> = {
+  zh: 'Traditional Chinese (zh-TW)',
+  en: 'English',
+  ko: 'Korean',
+  ja: 'Japanese'
 }
 
 function getToneInstruction(tone: TranslationTone, direction?: TranslationDirection): string {
@@ -36,33 +35,6 @@ function getToneInstruction(tone: TranslationTone, direction?: TranslationDirect
     return direction === 'zh-to-en'
       ? 'Use formal, professional English suitable for business or academic contexts.'
       : 'Use formal, professional Traditional Chinese (zh-TW) suitable for business or academic contexts.'
-  }
-
-  return ''
-}
-
-function getToneInstructionForTarget(
-  tone: TranslationTone,
-  target: TranslationTargetLang
-): string {
-  if (tone === 'colloquial') {
-    if (target === 'en') {
-      return 'Use natural, idiomatic English that a native speaker would write or say in everyday life. Prefer common collocations and spoken-style phrasing over literal word-for-word translation. Use contractions where natural. Keep it conversational, locally natural, and easy to understand—not stiff, textbook-like, or overly formal.'
-    }
-    if (target === 'ko') {
-      return 'Use natural, idiomatic Korean as native speakers would in daily conversation—口語化、在地化，避免生硬直譯或過度正式用語。'
-    }
-    return 'Use natural, idiomatic Japanese as native speakers would in daily conversation—口語化、自然な言い回し，避免生硬直譯或過度正式用語。'
-  }
-
-  if (tone === 'professional') {
-    if (target === 'en') {
-      return 'Use formal, professional English suitable for business or academic contexts.'
-    }
-    if (target === 'ko') {
-      return 'Use formal, professional Korean suitable for business or academic contexts.'
-    }
-    return 'Use formal, professional Japanese suitable for business or academic contexts.'
   }
 
   return ''
@@ -138,6 +110,32 @@ Automatically detect the source language (e.g. English, Korean, Japanese, or oth
 Return only the translation, no explanation.${formatRule}${toneSuffix}
 
 Text:
+${text}`
+}
+
+export function buildReplySuggestionPrompt(text: string): string {
+  const isChinese = /[\u4e00-\u9fff]/.test(text)
+  const langRule = isChinese
+    ? 'Write all output in Traditional Chinese (zh-TW).'
+    : 'Write all output in English.'
+
+  return `The user selected a message they received and needs help deciding how to reply.
+
+${langRule}
+
+Return ONLY the following structure (no markdown fences):
+
+【理解】
+One or two short sentences summarizing the sender's intent or tone.
+
+【建議回覆】
+1. First ready-to-send reply option (natural, polite unless context suggests otherwise)
+2. Second option with a different tone or approach when useful
+3. Third option only if it adds meaningful variety; omit if two options are enough
+
+Keep each reply option concise and copy-paste ready. Do not add extra commentary outside this format.
+
+Message:
 ${text}`
 }
 

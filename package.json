@@ -1,11 +1,12 @@
 {
   "name": "transl",
-  "version": "2.6.2",
+  "version": "3.0.0",
   "description": "Windows text selection AI translator with floating overlay",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
-    "build": "electron-vite build",
+    "build": "npm run build:shared && electron-vite build",
+    "build:shared": "npm run build --prefix packages/shared",
     "preview": "electron-vite preview",
     "dist:win": "npm run icons && npm run build && electron-builder --win",
     "icons": "node scripts/generate-icon.mjs"
@@ -14,6 +15,7 @@
   "license": "MIT",
   "dependencies": {
     "@nut-tree-fork/nut-js": "^4.2.6",
+    "@transl/shared": "file:packages/shared",
     "dotenv": "^16.4.5",
     "electron-store": "^8.2.0",
     "koffi": "^3.0.2",

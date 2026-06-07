@@ -3,7 +3,11 @@ import { cancelSpeech, speakText } from './speech'
 import { useOverlayDrag } from './useOverlayDrag'
 import ZoomableImage from './ZoomableImage'
 
-type OverlayMode = 'translate' | 'reply'
+import type {
+  OverlayMode,
+  RetoneOption,
+  TranslationTargetLang
+} from '@desktop'
 
 type OverlayState =
   | { status: 'idle' }
@@ -104,7 +108,7 @@ export default function App(): JSX.Element {
     }
   }
 
-  const handleRetone = (tone: 'colloquial' | 'professional'): void => {
+  const handleRetone = (tone: RetoneOption): void => {
     if (state.status !== 'success') {
       return
     }
@@ -113,7 +117,7 @@ export default function App(): JSX.Element {
     void window.electronAPI.retoneTranslation(state.original, { tone })
   }
 
-  const handleRetarget = (targetLang: 'zh' | 'en' | 'ko' | 'ja'): void => {
+  const handleRetarget = (targetLang: TranslationTargetLang): void => {
     if (state.status !== 'success') {
       return
     }
