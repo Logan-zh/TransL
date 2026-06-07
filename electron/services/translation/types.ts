@@ -25,12 +25,6 @@ export interface TranslationProvider {
   translateImage(image: Electron.NativeImage, tone?: TranslationTone): Promise<ImageTranslationResult>
 }
 
-const TARGET_LANG_LABEL: Record<TranslationTargetLang, string> = {
-  en: 'English',
-  ko: 'Korean',
-  ja: 'Japanese'
-}
-
 function getToneInstruction(tone: TranslationTone, direction?: TranslationDirection): string {
   if (tone === 'colloquial') {
     return direction === 'zh-to-en'
@@ -62,6 +56,39 @@ function getToneInstructionForTarget(
   }
 
   if (tone === 'professional') {
+    if (target === 'en') {
+      return 'Use formal, professional English suitable for business or academic contexts.'
+    }
+    if (target === 'ko') {
+      return 'Use formal, professional Korean suitable for business or academic contexts.'
+    }
+    return 'Use formal, professional Japanese suitable for business or academic contexts.'
+  }
+
+  return ''
+}
+
+function getToneInstructionForTarget(
+  tone: TranslationTone,
+  target: TranslationTargetLang
+): string {
+  if (tone === 'colloquial') {
+    if (target === 'zh') {
+      return 'Use natural, idiomatic Traditional Chinese (zh-TW) as native speakers would in daily conversation—口語化、在地化，避免生硬直譯、書面套話或過度正式用語。'
+    }
+    if (target === 'en') {
+      return 'Use natural, idiomatic English that a native speaker would write or say in everyday life. Prefer common collocations and spoken-style phrasing over literal word-for-word translation. Use contractions where natural. Keep it conversational, locally natural, and easy to understand—not stiff, textbook-like, or overly formal.'
+    }
+    if (target === 'ko') {
+      return 'Use natural, idiomatic Korean as native speakers would in daily conversation—口語化、在地化，避免生硬直譯或過度正式用語。'
+    }
+    return 'Use natural, idiomatic Japanese as native speakers would in daily conversation—口語化、自然な言い回し，避免生硬直譯或過度正式用語。'
+  }
+
+  if (tone === 'professional') {
+    if (target === 'zh') {
+      return 'Use formal, professional Traditional Chinese (zh-TW) suitable for business or academic contexts.'
+    }
     if (target === 'en') {
       return 'Use formal, professional English suitable for business or academic contexts.'
     }

@@ -113,7 +113,7 @@ export default function App(): JSX.Element {
     void window.electronAPI.retoneTranslation(state.original, { tone })
   }
 
-  const handleRetarget = (targetLang: 'en' | 'ko' | 'ja'): void => {
+  const handleRetarget = (targetLang: 'zh' | 'en' | 'ko' | 'ja'): void => {
     if (state.status !== 'success') {
       return
     }
@@ -237,6 +237,9 @@ export default function App(): JSX.Element {
                     </button>
                     <div className="overlay-modify-menu-divider" role="separator" />
                     <p className="overlay-modify-menu-label">翻譯為</p>
+                    <button type="button" onClick={() => handleRetarget('zh')}>
+                      繁中
+                    </button>
                     <button type="button" onClick={() => handleRetarget('en')}>
                       英文
                     </button>

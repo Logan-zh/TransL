@@ -173,7 +173,7 @@ export async function translateTextApi(
   text: string,
   direction: 'en-to-zh' | 'zh-to-en',
   tone: 'default' | 'colloquial' | 'professional' = 'default',
-  targetLang?: 'en' | 'ko' | 'ja'
+  targetLang?: 'zh' | 'en' | 'ko' | 'ja'
 ): Promise<string> {
   await ensureAuthenticated()
   const result = await request<{ translation: string }>('/api/translate/text', {
@@ -209,7 +209,7 @@ export async function retoneApi(
   original: string,
   options: {
     tone?: 'colloquial' | 'professional'
-    targetLang?: 'en' | 'ko' | 'ja'
+    targetLang?: 'zh' | 'en' | 'ko' | 'ja'
   }
 ): Promise<string> {
   await ensureAuthenticated()
