@@ -1,73 +1,85 @@
 import { DOUBLE_TAP_MS, POLL_INTERVAL_MS, TRIGGER_COOLDOWN_MS } from './hotkey-constants'
+import { getVkForKey, VK_CONTROL, VK_LWIN, VK_RWIN } from './hotkey-codes'
+import { hasClipboardText } from './clipboard'
 import {
   isWindowsScreenshotShortcutGuarded,
   updateWindowsScreenshotGuard
 } from './windows-shortcut-guard'
-import { getClipboardSequenceNumber } from './win32'
+import { isKeyDown } from './win32'
+
+const VK_C = getVkForKey('C')!
 
 let pollTimer: NodeJS.Timeout | null = null
-let lastSeq = 0
-let lastChangeTime = 0
+let wasKeyDown = false
+let lastPressTime = 0
 let lastTriggerTime = 0
 let onDoubleCopy: (() => void) | null = null
 let suppressed = false
 
 export function setDoubleCopySuppressed(value: boolean): void {
   suppressed = value
-  lastChangeTime = 0
-  lastSeq = getClipboardSequenceNumber()
+  lastPressTime = 0
+  wasKeyDown = isKeyDown(VK_C)
 }
 
-/** 重設雙擊 Ctrl+C 計時基準，避免程式內部複製干擾使用者快捷鍵 */
+/** 重設雙擊 Ctrl+C 計時基準，避免程式內部模擬複製干擾使用者快捷鍵 */
 export function syncDoubleCopyBaseline(): void {
-  lastChangeTime = 0
-  lastSeq = getClipboardSequenceNumber()
+  lastPressTime = 0
+  wasKeyDown = isKeyDown(VK_C)
 }
 
 export function startDoubleCopyListener(handler: () => void): void {
   stopDoubleCopyListener()
 
   onDoubleCopy = handler
-  lastSeq = getClipboardSequenceNumber()
-  lastChangeTime = 0
+  lastPressTime = 0
   lastTriggerTime = 0
+  wasKeyDown = isKeyDown(VK_C)
 
   pollTimer = setInterval(() => {
     if (updateWindowsScreenshotGuard()) {
-      lastChangeTime = 0
-      lastSeq = getClipboardSequenceNumber()
-    }
-
-    const seq = getClipboardSequenceNumber()
-    if (seq === lastSeq) {
-      return
+      lastPressTime = 0
     }
 
     if (suppressed || isWindowsScreenshotShortcutGuarded()) {
-      lastSeq = seq
+      wasKeyDown = isKeyDown(VK_C)
       if (isWindowsScreenshotShortcutGuarded()) {
-        lastChangeTime = 0
+        lastPressTime = 0
       }
       return
     }
 
+    if (!isKeyDown(VK_CONTROL) || isKeyDown(VK_LWIN) || isKeyDown(VK_RWIN)) {
+      lastPressTime = 0
+      wasKeyDown = isKeyDown(VK_C)
+      return
+    }
+
+    const keyDown = isKeyDown(VK_C)
     const now = Date.now()
-    if (lastChangeTime > 0 && now - lastChangeTime <= DOUBLE_TAP_MS) {
-      if (now - lastTriggerTime >= TRIGGER_COOLDOWN_MS) {
-        lastTriggerTime = now
-        lastChangeTime = 0
-        lastSeq = seq
-        console.log('[TransL] double copy detected, seq=', seq)
-        onDoubleCopy?.()
-        return
+
+    if (keyDown && !wasKeyDown) {
+      if (lastPressTime > 0 && now - lastPressTime <= DOUBLE_TAP_MS) {
+        if (now - lastTriggerTime >= TRIGGER_COOLDOWN_MS) {
+          lastPressTime = 0
+          if (!hasClipboardText()) {
+            console.log('[TransL] double Ctrl+C ignored (no text)')
+            wasKeyDown = keyDown
+            return
+          }
+          lastTriggerTime = now
+          console.log('[TransL] double Ctrl+C detected')
+          onDoubleCopy?.()
+        }
+      } else {
+        lastPressTime = now
       }
     }
 
-    lastChangeTime = now
-    lastSeq = seq
+    wasKeyDown = keyDown
   }, POLL_INTERVAL_MS)
 
-  console.log('[TransL] clipboard sequence listener started, seq=', lastSeq)
+  console.log('[TransL] double Ctrl+C listener started')
 }
 
 export function stopDoubleCopyListener(): void {
@@ -75,6 +87,7 @@ export function stopDoubleCopyListener(): void {
     clearInterval(pollTimer)
     pollTimer = null
   }
-  lastChangeTime = 0
+  lastPressTime = 0
+  wasKeyDown = false
   onDoubleCopy = null
 }

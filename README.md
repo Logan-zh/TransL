@@ -96,7 +96,7 @@ npm run dist:win
 
 ## 已知限制
 
-- 透過 Windows 剪貼簿序號偵測「連按兩次 Ctrl+C」，兩次複製須在 **0.8 秒內** 完成
+- 透過鍵盤偵測「**0.8 秒內連按兩次 Ctrl+C**」（須實際按兩次 C，非剪貼簿任一變動）；剪貼簿僅有圖片時不觸發
 - `Ctrl+Q` 雙擊會先模擬 `Ctrl+C` 取得框選文字，再顯示回覆建議浮動窗
 - `Ctrl+Alt+D` 雙擊會先模擬 `Ctrl+C` 取得選取文字，再貼上譯文；需同時按住 Ctrl 與 Alt，較不易與其他 `Ctrl+D` 快捷鍵衝突
 - 若雙擊 Ctrl+C 無反應，可先用系統匣 → **翻譯目前剪貼簿** 測試（先 Ctrl+C 複製一次即可）
@@ -111,7 +111,7 @@ npm run dist:win
 - Electron + electron-vite
 - React + TypeScript
 - electron-store
-- koffi（Windows 剪貼簿序號 API、鍵盤狀態偵測）
+- koffi（Windows 鍵盤狀態偵測、剪貼簿序號 API）
 - @nut-tree-fork/nut-js（模擬 Ctrl+C / Ctrl+V）
 
 ## 專案結構
