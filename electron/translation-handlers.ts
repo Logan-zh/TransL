@@ -1,4 +1,4 @@
-import { clipboard, dialog } from 'electron'
+import { clipboard, dialog, screen } from 'electron'
 import { getTextFromClipboard } from './services/clipboard-text'
 import { copySelectedTextFromTarget } from './services/copy-selection'
 import {
@@ -30,6 +30,8 @@ import {
   buildScreenshotDisplayImage,
   hideOverlayWindow,
   hideSelectionTriggerWindow,
+  SELECTION_TRIGGER_HEIGHT,
+  SELECTION_TRIGGER_WIDTH,
   showOverlayError,
   showOverlayLoading,
   showOverlayResult,
@@ -70,25 +72,43 @@ async function translateText(
   return provider.translate(original, direction, tone, targetLang)
 }
 
+function getSelectionTriggerAnchor(): { x: number; y: number } | undefined {
+  if (
+    !appState.selectionTriggerWindow ||
+    appState.selectionTriggerWindow.isDestroyed() ||
+    !appState.selectionTriggerWindow.isVisible()
+  ) {
+    return undefined
+  }
+
+  const bounds = appState.selectionTriggerWindow.getBounds()
+  return {
+    x: bounds.x + SELECTION_TRIGGER_WIDTH,
+    y: bounds.y + SELECTION_TRIGGER_HEIGHT
+  }
+}
+
 export async function handleTranslateOverlay(
   prefilledText?: string,
-  reposition = true
+  reposition = true,
+  anchor?: { x: number; y: number }
 ): Promise<void> {
   if (appState.isTranslating) {
     return
   }
 
+  const overlayAnchor = anchor ?? getSelectionTriggerAnchor() ?? screen.getCursorScreenPoint()
   hideSelectionTriggerWindow()
   appState.isTranslating = true
   captureTargetWindow()
   appState.lastOverlayImageDataUrl = undefined
   appState.lastScreenshotNativeImage = null
   appState.lastImageBlockLayout = null
-  showOverlayLoading('', undefined, reposition)
+  showOverlayLoading('', undefined, reposition, 'translate', overlayAnchor)
 
   try {
     const selectedText = prefilledText ?? (await getTextFromClipboard())
-    showOverlayLoading(selectedText, undefined, reposition)
+    showOverlayLoading(selectedText, undefined, false, 'translate')
 
     const translation = await translateText(selectedText)
     showOverlayResult(selectedText, translation)
@@ -105,12 +125,12 @@ export async function handleDoubleCopyTranslate(): Promise<void> {
 }
 
 export async function handleSelectionIconTranslate(): Promise<void> {
-  hideSelectionTriggerWindow()
-
   if (appState.isTranslating) {
     return
   }
 
+  const overlayAnchor = getSelectionTriggerAnchor() ?? screen.getCursorScreenPoint()
+  hideSelectionTriggerWindow()
   setDoubleCopySuppressed(true)
   let clipboardBackup = ''
 
@@ -118,10 +138,9 @@ export async function handleSelectionIconTranslate(): Promise<void> {
     const copied = await copySelectedTextFromTarget()
     clipboardBackup = copied.clipboardBackup
     restoreClipboardText(clipboardBackup)
-    await handleTranslateOverlay(copied.text)
+    await handleTranslateOverlay(copied.text, true, overlayAnchor)
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    showOverlayLoading('')
     showOverlayError(message)
   } finally {
     setDoubleCopySuppressed(false)
@@ -184,7 +203,8 @@ export async function handleDoubleCtrlQReplySuggest(): Promise<void> {
     clipboardBackup = copied.clipboardBackup
     restoreClipboardText(clipboardBackup)
 
-    showOverlayLoading(copied.text, '思考回覆中…', true, 'reply')
+    const overlayAnchor = screen.getCursorScreenPoint()
+    showOverlayLoading(copied.text, '思考回覆中…', true, 'reply', overlayAnchor)
 
     await ensureAuthenticated()
     const suggestion = await suggestReplyApi(copied.text)
@@ -253,7 +273,11 @@ export async function handleScreenshotTranslate(): Promise<void> {
     const image = await captureScreenRegion(bounds)
     clipboard.writeImage(image)
 
-    showOverlayLoading('', '辨識並翻譯圖片中…')
+    const overlayAnchor = {
+      x: bounds.x + bounds.width,
+      y: bounds.y + bounds.height
+    }
+    showOverlayLoading('', '辨識並翻譯圖片中…', true, 'translate', overlayAnchor)
 
     await ensureAuthenticated()
     const provider = createTranslationProvider()

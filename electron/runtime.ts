@@ -32,6 +32,7 @@ import {
   hideSelectionTriggerWindow,
   isPointerOverSelectionTrigger,
   isSelectionListenerBlocked,
+  clampOverlayPosition,
   OVERLAY_MAX_HEIGHT,
   OVERLAY_WIDTH,
   showSelectionTriggerWindow
@@ -47,7 +48,10 @@ function setupKeyboardListeners(): void {
     }
 
     applyHotkeys(getSettings().hotkeys, {
-      translateOverlay: () => void handleTranslateOverlay(),
+      translateOverlay: () => {
+        const anchor = screen.getCursorScreenPoint()
+        void handleTranslateOverlay(undefined, true, anchor)
+      },
       translatePaste: () => void handleDoubleCtrlDTranslatePaste(),
       replySuggest: () => void handleDoubleCtrlQReplySuggest(),
       screenshotTranslate: () => void handleScreenshotTranslate()
@@ -112,9 +116,10 @@ function setupIpc(): void {
     }
     const bounds = appState.overlayWindow.getBounds()
     const height = Math.min(Math.max(bounds.height, 80), OVERLAY_MAX_HEIGHT)
+    const clamped = clampOverlayPosition(Math.round(x), Math.round(y))
     appState.overlayWindow.setBounds({
-      x: Math.round(x),
-      y: Math.round(y),
+      x: clamped.x,
+      y: clamped.y,
       width: OVERLAY_WIDTH,
       height
     })
@@ -182,7 +187,10 @@ export function setupApp(): void {
   setupIpc()
 
   createTray({
-    onTranslateClipboard: () => void handleTranslateOverlay(),
+    onTranslateClipboard: () => {
+      const anchor = screen.getCursorScreenPoint()
+      void handleTranslateOverlay(undefined, true, anchor)
+    },
     onOpenSettings: () => createSettingsWindow(),
     onReloadListener: () => {
       setupKeyboardListeners()

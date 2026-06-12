@@ -44,8 +44,19 @@ export async function buildScreenshotDisplayImage(
   }
 }
 
-export function getOverlayPosition(): { x: number; y: number } {
-  const cursor = screen.getCursorScreenPoint()
+export function clampOverlayPosition(x: number, y: number): { x: number; y: number } {
+  const display = screen.getDisplayNearestPoint({ x, y })
+  const { x: workX, y: workY, width: workWidth, height: workHeight } = display.workArea
+
+  return {
+    x: Math.max(workX, Math.min(x, workX + workWidth - OVERLAY_WIDTH)),
+    y: Math.max(workY, Math.min(y, workY + workHeight - OVERLAY_MAX_HEIGHT))
+  }
+}
+
+/** 視窗左上角：預設在錨點（通常為滑鼠）右下方 */
+export function getOverlayPosition(anchor?: { x: number; y: number }): { x: number; y: number } {
+  const cursor = anchor ?? screen.getCursorScreenPoint()
   const display = screen.getDisplayNearestPoint(cursor)
   const { x: workX, y: workY, width: workWidth, height: workHeight } = display.workArea
 
@@ -59,10 +70,7 @@ export function getOverlayPosition(): { x: number; y: number } {
     y = cursor.y - OVERLAY_MAX_HEIGHT - CURSOR_OFFSET
   }
 
-  x = Math.max(workX, Math.min(x, workX + workWidth - OVERLAY_WIDTH))
-  y = Math.max(workY, Math.min(y, workY + workHeight - 80))
-
-  return { x, y }
+  return clampOverlayPosition(x, y)
 }
 
 export function createOverlayWindow(): BrowserWindow {
@@ -328,12 +336,13 @@ export function showOverlayLoading(
   original: string,
   message?: string,
   reposition = true,
-  mode: OverlayMode = 'translate'
+  mode: OverlayMode = 'translate',
+  anchor?: { x: number; y: number }
 ): void {
   const win = createOverlayWindow()
 
-  if (reposition || !win.isVisible()) {
-    const { x, y } = getOverlayPosition()
+  if (!win.isVisible() || reposition) {
+    const { x, y } = getOverlayPosition(anchor)
     win.setBounds({ x, y, width: OVERLAY_WIDTH, height: OVERLAY_MAX_HEIGHT })
   }
 
