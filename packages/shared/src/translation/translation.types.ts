@@ -115,25 +115,30 @@ ${text}`
 
 export function buildReplySuggestionPrompt(text: string): string {
   const isChinese = /[\u4e00-\u9fff]/.test(text)
-  const langRule = isChinese
-    ? 'Write all output in Traditional Chinese (zh-TW).'
-    : 'Write all output in English.'
+  const replyLangRule = isChinese
+    ? 'Each ready-to-send reply must be in Traditional Chinese (zh-TW).'
+    : 'Each ready-to-send reply must be in the same language as the message (or English if unclear).'
 
   return `The user selected a message they received and needs help deciding how to reply.
-
-${langRule}
+The user is a Traditional Chinese (zh-TW) speaker and needs Chinese explanations throughout.
 
 Return ONLY the following structure (no markdown fences):
 
 【理解】
-One or two short sentences summarizing the sender's intent or tone.
+One or two short sentences in Traditional Chinese (zh-TW) summarizing the sender's intent, tone, and key points.
 
 【建議回覆】
-1. First ready-to-send reply option (natural, polite unless context suggests otherwise)
-2. Second option with a different tone or approach when useful
-3. Third option only if it adds meaningful variety; omit if two options are enough
+${replyLangRule}
+For each numbered option:
+- Line 1: the reply text (concise, copy-paste ready)
+- Line 2: a brief Traditional Chinese note in parentheses explaining the tone, approach, or when to use it
 
-Keep each reply option concise and copy-paste ready. Do not add extra commentary outside this format.
+Example:
+1. Thanks, I'll follow up by tomorrow.
+   （語氣禮貌，承諾具體時間）
+2. ...
+
+Provide 2–3 options when useful; omit a third if it adds little variety. Do not add extra sections outside this format.
 
 Message:
 ${text}`

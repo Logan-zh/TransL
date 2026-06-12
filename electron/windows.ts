@@ -66,8 +66,10 @@ export function getOverlayPosition(anchor?: { x: number; y: number }): { x: numb
   if (x + OVERLAY_WIDTH > workX + workWidth) {
     x = cursor.x - OVERLAY_WIDTH - CURSOR_OFFSET
   }
+
+  // 下方空間不足時向上平移貼齊工作區底部，避免整窗翻到游標上方而離選取處太遠
   if (y + OVERLAY_MAX_HEIGHT > workY + workHeight) {
-    y = cursor.y - OVERLAY_MAX_HEIGHT - CURSOR_OFFSET
+    y = workY + workHeight - OVERLAY_MAX_HEIGHT
   }
 
   return clampOverlayPosition(x, y)
