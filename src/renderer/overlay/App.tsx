@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { APP_NAME } from '@transl/shared'
 import { cancelSpeech, speakText } from './speech'
 import { useOverlayDrag } from './useOverlayDrag'
 import ZoomableImage from './ZoomableImage'
@@ -149,7 +150,7 @@ export default function App(): JSX.Element {
   return (
     <div className={`overlay-card${isReply ? ' overlay-card-reply' : ''}`}>
       <div className="overlay-header overlay-drag-handle" {...dragHandleProps}>
-        <span className="overlay-title">{isReply ? '回覆建議' : 'TransL'}</span>
+        <span className="overlay-title">{isReply ? '回覆建議' : APP_NAME}</span>
         <button
           type="button"
           className="overlay-close"

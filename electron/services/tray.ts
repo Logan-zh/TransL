@@ -1,5 +1,6 @@
 import { Menu, Tray, nativeImage } from 'electron'
 import { getTrayIconPath } from './icon-path'
+import { APP_NAME } from './brand'
 
 let tray: Tray | null = null
 
@@ -25,7 +26,7 @@ export function createTray(handlers: TrayHandlers): Tray {
   }
 
   tray = new Tray(getTrayIcon())
-  tray.setToolTip('TransL — 可在設定中自訂快捷鍵')
+  tray.setToolTip(`${APP_NAME} — 可在設定中自訂快捷鍵`)
 
   const contextMenu = Menu.buildFromTemplate([
     {

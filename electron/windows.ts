@@ -8,6 +8,7 @@ import {
 } from './services/image-overlay'
 import { isScreenshotPickerOpen } from './services/screenshot-picker'
 import { getAppIconPath } from './services/icon-path'
+import { APP_NAME } from './services/brand'
 import { IPC } from './services/ipc-channels'
 import type { OverlayMode } from './services/config'
 
@@ -39,7 +40,7 @@ export async function buildScreenshotDisplayImage(
   try {
     return await compositeTranslationOnImage(sourceImage, blocks)
   } catch (error) {
-    console.error('[TransL] image overlay failed:', error)
+    console.error('[DEMOL] image overlay failed:', error)
     return sourceImage
   }
 }
@@ -262,7 +263,7 @@ export function createLoginWindow(): BrowserWindow {
     height: 480,
     show: false,
     autoHideMenuBar: true,
-    title: 'TransL 登入',
+    title: `${APP_NAME} 登入`,
     icon: getAppIconPath(),
     resizable: false,
     webPreferences: {
@@ -301,7 +302,7 @@ export function createSettingsWindow(): BrowserWindow {
     height: 720,
     show: false,
     autoHideMenuBar: true,
-    title: 'TransL 設定',
+    title: `${APP_NAME} 設定`,
     icon: getAppIconPath(),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),

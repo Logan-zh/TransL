@@ -1,6 +1,6 @@
 import { app, dialog, shell } from 'electron'
 import type { DesktopReleaseInfo } from '@transl/shared'
-import { isNewerVersion } from '@transl/shared'
+import { isNewerVersion, APP_NAME } from '@transl/shared'
 import { getApiBaseUrl } from './api-config'
 import { showTrayBalloon } from './tray'
 
@@ -18,13 +18,13 @@ export async function fetchPublicRelease(): Promise<DesktopReleaseInfo | null> {
   try {
     const response = await fetch(apiUrl)
     if (!response.ok) {
-      console.warn('[TransL] release check HTTP', response.status, apiUrl)
+      console.warn('[DEMOL] release check HTTP', response.status, apiUrl)
       return null
     }
     return (await response.json()) as DesktopReleaseInfo
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    console.warn('[TransL] release check failed:', message, apiUrl)
+    console.warn('[DEMOL] release check failed:', message, apiUrl)
     return null
   }
 }
@@ -38,7 +38,7 @@ export async function checkForDesktopUpdate(options: {
     if (!options.silent) {
       await dialog.showMessageBox({
         type: 'info',
-        title: 'TransL 更新',
+        title: `${APP_NAME} 更新`,
         message: `目前無法取得版本資訊，請稍後再試或至官網下載。\n\nAPI：${apiUrl}`
       })
     }
@@ -50,7 +50,7 @@ export async function checkForDesktopUpdate(options: {
     if (!options.silent) {
       await dialog.showMessageBox({
         type: 'info',
-        title: 'TransL 更新',
+        title: `${APP_NAME} 更新`,
         message: `您使用的是最新版本（v${current}）。\n\n伺服器最新版：v${release.version}`
       })
     }
@@ -59,12 +59,12 @@ export async function checkForDesktopUpdate(options: {
 
   const notes = release.releaseNotes ? `\n\n${release.releaseNotes}` : ''
   showTrayBalloon(
-    'TransL 有新版本',
+    `${APP_NAME} 有新版本`,
     `v${release.version} 已發佈（目前 v${current}）`
   )
   const result = await dialog.showMessageBox({
     type: 'info',
-    title: 'TransL 有新版本',
+    title: `${APP_NAME} 有新版本`,
     message: `發現新版本 v${release.version}（目前 v${current}）${notes}`,
     buttons: ['前往下載', '稍後'],
     defaultId: 0,

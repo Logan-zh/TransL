@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
+import { APP_NAME } from '@transl/shared'
 import type {
   AppHotkeys,
   HotkeyBinding,
@@ -180,7 +181,7 @@ export default function App(): JSX.Element {
   return (
     <div className="settings-page">
       <header className="settings-header">
-        <h1>TransL 設定</h1>
+        <h1>{APP_NAME} 設定</h1>
         <p>登入後可自訂全域快捷鍵；變更後請按「儲存設定」。</p>
       </header>
 

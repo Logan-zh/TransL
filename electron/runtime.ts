@@ -11,7 +11,10 @@ import { DEFAULT_HOTKEYS, type RetoneOption, type ScreenRect, type TranslationTa
 import { hasStoredSession } from './services/auth-store'
 import { ensureAuthenticated, getProfile, login as apiLogin, logout as apiLogout } from './services/api-client'
 import { createTray, destroyTray, showTrayBalloon } from './services/tray'
+import { APP_NAME } from './services/brand'
 import { checkForDesktopUpdate } from './services/release-check'
+import { removeLegacyDesktopShortcuts } from './services/legacy-shortcut'
+import { isSilentStartup } from './services/silent-startup'
 import { IPC } from './services/ipc-channels'
 import {
   getSessionInfo,
@@ -58,7 +61,7 @@ function setupKeyboardListeners(): void {
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    console.error('[TransL] keyboard listener failed:', message)
+    console.error('[DEMOL] keyboard listener failed:', message)
     dialog.showErrorBox(
       '快捷鍵監聽啟動失敗',
       `無法啟動快捷鍵監聽，部分功能將無法使用。\n\n${message}`
@@ -166,9 +169,9 @@ function setupIpc(): void {
     }
     notifySettingsSessionChanged()
     if (!profile.provider) {
-      showTrayBalloon('TransL', '登入成功，但尚未指派翻譯服務，請聯絡管理員。')
+      showTrayBalloon(APP_NAME, '登入成功，但尚未指派翻譯服務，請聯絡管理員。')
     } else {
-      showTrayBalloon('TransL', `歡迎 ${profile.username}，翻譯功能已就緒。`)
+      showTrayBalloon(APP_NAME, `歡迎 ${profile.username}，翻譯功能已就緒。`)
     }
     return profile
   })
@@ -183,7 +186,7 @@ function setupIpc(): void {
   ipcMain.on(IPC.CAPTURE_CANCEL, () => cancelScreenshotPicker())
 }
 
-export function setupApp(): void {
+export function setupApp(options?: { showStartupBalloon?: boolean }): void {
   setupIpc()
 
   createTray({
@@ -195,7 +198,7 @@ export function setupApp(): void {
     onReloadListener: () => {
       setupKeyboardListeners()
       setupSelectionListener()
-      showTrayBalloon('TransL', '快捷鍵與選取提示已重新載入')
+      showTrayBalloon(APP_NAME, '快捷鍵與選取提示已重新載入')
     },
     onCheckUpdate: () => void checkForDesktopUpdate(),
     onQuit: () => app.quit()
@@ -204,20 +207,28 @@ export function setupApp(): void {
   setupKeyboardListeners()
   setupSelectionListener()
 
-  showTrayBalloon(
-    'TransL 已啟動',
-    '拖曳選取後可點旁邊圖示翻譯；亦可使用快捷鍵或雙擊 Ctrl+C'
-  )
+  if (options?.showStartupBalloon !== false) {
+    showTrayBalloon(
+      `${APP_NAME} 已啟動`,
+      '拖曳選取後可點旁邊圖示翻譯；亦可使用快捷鍵或雙擊 Ctrl+C'
+    )
+  }
 }
 
 export async function onAppReady(): Promise<void> {
+  removeLegacyDesktopShortcuts()
   applyStoredAutoLaunch()
-  setupApp()
+  const silentStart = isSilentStartup()
+  setupApp({ showStartupBalloon: !silentStart || !hasStoredSession() })
 
   setTimeout(() => void checkForDesktopUpdate({ silent: true }), 3000)
 
   if (!hasStoredSession()) {
-    createLoginWindow()
+    if (!silentStart) {
+      createLoginWindow()
+    } else {
+      showTrayBalloon(APP_NAME, '請從系統匣圖示開啟登入。')
+    }
     return
   }
 
@@ -225,10 +236,14 @@ export async function onAppReady(): Promise<void> {
     await ensureAuthenticated()
     const profile = await getProfile()
     if (!profile.provider) {
-      showTrayBalloon('TransL', '尚未指派翻譯服務，請聯絡管理員後再使用翻譯功能。')
+      showTrayBalloon(APP_NAME, '尚未指派翻譯服務，請聯絡管理員後再使用翻譯功能。')
     }
   } catch {
-    createLoginWindow()
+    if (!silentStart) {
+      createLoginWindow()
+    } else {
+      showTrayBalloon(APP_NAME, '登入狀態需更新，使用翻譯前請從系統匣開啟登入。')
+    }
   }
 }
 

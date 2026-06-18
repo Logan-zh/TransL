@@ -66,7 +66,13 @@ export function createHttpClient(options: CreateHttpClientOptions): HttpClient {
     }
 
     const url = options.resolveUrl(path)
-    const response = await fetch(url, { ...init, headers })
+    let response: Response
+    try {
+      response = await fetch(url, { ...init, headers })
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error)
+      throw new ApiError(`無法連線 API（${url}）：${detail}`, 'NETWORK_ERROR', 0)
+    }
 
     const canRetry =
       retryOnUnauthorized &&

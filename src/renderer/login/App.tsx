@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
+import { APP_NAME, formatIpcInvokeError } from '@transl/shared'
 
 export default function App(): JSX.Element {
   const [username, setUsername] = useState('')
@@ -18,7 +19,8 @@ export default function App(): JSX.Element {
     try {
       await window.electronAPI.login({ username, password })
     } catch (err) {
-      setError(err instanceof Error ? err.message : '登入失敗')
+      const raw = err instanceof Error ? err.message : '登入失敗'
+      setError(formatIpcInvokeError(raw))
     } finally {
       setLoading(false)
     }
@@ -27,7 +29,7 @@ export default function App(): JSX.Element {
   return (
     <div className="login-page">
       <form className="login-card" onSubmit={(e) => void handleSubmit(e)}>
-        <h1>{version ? `TransL v${version}` : 'TransL'}</h1>
+        <h1>{version ? `${APP_NAME} v${version}` : APP_NAME}</h1>
         <p className="login-hint">請使用管理後台建立的會員帳號登入</p>
         <label>
           帳號

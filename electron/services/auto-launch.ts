@@ -12,8 +12,11 @@ export function setAutoLaunchEnabled(enabled: boolean): void {
 }
 
 export function syncAutoLaunchSetting(enabled: boolean): void {
-  const current = getAutoLaunchEnabled()
-  if (current !== enabled) {
-    setAutoLaunchEnabled(enabled)
+  if (enabled) {
+    setAutoLaunchEnabled(true)
+    return
+  }
+  if (getAutoLaunchEnabled()) {
+    setAutoLaunchEnabled(false)
   }
 }

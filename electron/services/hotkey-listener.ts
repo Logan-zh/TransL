@@ -109,7 +109,7 @@ function ensurePolling(): void {
             if (now - state.lastTriggerTime >= TRIGGER_COOLDOWN_MS) {
               state.lastTriggerTime = now
               state.lastPressTime = 0
-              console.log(`[TransL] hotkey triggered: ${state.id}`)
+              console.log(`[DEMOL] hotkey triggered: ${state.id}`)
               state.handler()
             }
           } else {
@@ -117,7 +117,7 @@ function ensurePolling(): void {
           }
         } else if (now - state.lastTriggerTime >= TRIGGER_COOLDOWN_MS) {
           state.lastTriggerTime = now
-          console.log(`[TransL] hotkey triggered: ${state.id}`)
+          console.log(`[DEMOL] hotkey triggered: ${state.id}`)
           state.handler()
         }
       }
@@ -126,7 +126,7 @@ function ensurePolling(): void {
     }
   }, POLL_INTERVAL_MS)
 
-  console.log('[TransL] hotkey listener started, bindings=', states.length)
+  console.log('[DEMOL] hotkey listener started, bindings=', states.length)
 }
 
 /** Wait until no keys are pressed (for capture). */

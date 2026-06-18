@@ -63,12 +63,12 @@ export function startDoubleCopyListener(handler: () => void): void {
         if (now - lastTriggerTime >= TRIGGER_COOLDOWN_MS) {
           lastPressTime = 0
           if (!hasClipboardText()) {
-            console.log('[TransL] double Ctrl+C ignored (no text)')
+            console.log('[DEMOL] double Ctrl+C ignored (no text)')
             wasKeyDown = keyDown
             return
           }
           lastTriggerTime = now
-          console.log('[TransL] double Ctrl+C detected')
+          console.log('[DEMOL] double Ctrl+C detected')
           onDoubleCopy?.()
         }
       } else {
@@ -79,7 +79,7 @@ export function startDoubleCopyListener(handler: () => void): void {
     wasKeyDown = keyDown
   }, POLL_INTERVAL_MS)
 
-  console.log('[TransL] double Ctrl+C listener started')
+  console.log('[DEMOL] double Ctrl+C listener started')
 }
 
 export function stopDoubleCopyListener(): void {

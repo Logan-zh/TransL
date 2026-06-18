@@ -1,6 +1,6 @@
-# TransL
+# DEMOL
 
-Windows 桌面應用程式（**2.0 會員版**）：選取文字後，按住 Ctrl 連按兩次 C 呼叫翻譯浮動窗。翻譯服務由 [TransL-admin](../TransL-admin) 後台管理，會員登入後使用。
+Windows 桌面應用程式（**會員版**）：選取文字後，按住 Ctrl 連按兩次 C 呼叫翻譯浮動窗。翻譯服務由 [demol-admin](../demol-admin) 後台管理，會員登入後使用。
 
 ## 功能
 
@@ -27,23 +27,30 @@ npm install
 npm run dev
 ```
 
-首次執行若尚未登入，會自動開啟登入視窗。請先啟動 TransL-admin 後台並建立會員帳號。
+首次執行若尚未登入，會自動開啟登入視窗。請先啟動 DEMOL 後台（demol-admin）並建立會員帳號。
 
 ```bash
 # 另開 terminal 啟動後台（需 Docker）
-cd ../TransL-admin
+cd ../demol-admin
 docker compose up -d --build
 ```
 
 ## 使用方式
 
-1. 啟動 TransL（會常駐系統匣）
+1. 啟動 DEMOL（會常駐系統匣）
 2. 在任意應用程式中選取文字
 3. 快捷鍵（0.8 秒內連按兩次同一鍵，除截圖外須按住 Ctrl）：
    - **Ctrl + C**：顯示翻譯浮動窗，可再貼上或調整語氣
    - **Ctrl + Alt + D ×2**：直接翻譯並貼回選取位置（不顯示浮動窗）
    - **Ctrl + Alt + S**：拖曳框選螢幕區域 → 辨識、翻譯並合成 **譯文圖**（存剪貼簿）
 4. 浮動窗模式下按 `Esc` 或點擊外部關閉
+
+## 測試
+
+```bash
+npm test              # 執行 Vitest（API 連線、下載 URL、登入錯誤訊息）
+npm run test:watch    # 監聽模式
+```
 
 ## 打包
 
@@ -60,7 +67,7 @@ npm run dist:win
 |------|------|--------|
 | 開機自動啟動 | 登入 Windows 後常駐系統匣 | 關閉 |
 
-會員帳號與翻譯服務指派請至 TransL-admin 管理後台（預設 http://localhost:8080，admin/admin）。
+會員帳號與翻譯服務指派請至 DEMOL 管理後台（demol-admin，預設 http://localhost:8080，admin/admin）。
 
 ## API 伺服器位址（部署用）
 
@@ -81,7 +88,7 @@ npm run dist:win
 
 或在專案根目錄建立 `.env` 再執行 `npm run dist:win`。
 
-**執行時覆寫**（進階）：在啟動 TransL 前設定系統環境變數 `TRANSL_API_URL` 可覆蓋建置時的值。
+**執行時覆寫**（進階）：在啟動 DEMOL 前設定系統環境變數 `TRANSL_API_URL` 可覆蓋建置時的值。
 
 ## 快捷鍵
 
@@ -117,7 +124,7 @@ npm run dist:win
 ## 專案結構
 
 ```
-TransL/
+demol/
 ├── electron/           # 主行程、preload、服務模組
 ├── src/renderer/       # 浮動窗 (overlay)、截圖選區 (capture)、設定 (settings) UI
 ├── out/                # 建置輸出

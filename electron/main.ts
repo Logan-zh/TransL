@@ -1,16 +1,30 @@
 import { config as loadDotenv } from 'dotenv'
 import { existsSync } from 'fs'
-import { join } from 'path'
+import { dirname, join } from 'path'
 import { app } from 'electron'
 import { onAppReady, onWillQuit } from './runtime'
 import { createSettingsWindow } from './windows'
+import { isSilentStartup } from './services/silent-startup'
 
-for (const envPath of [join(process.cwd(), '.env'), join(__dirname, '../../.env')]) {
-  if (existsSync(envPath)) {
-    loadDotenv({ path: envPath })
-    break
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.demol.app')
+}
+
+function loadEnvFiles(): void {
+  const candidates = [
+    join(process.cwd(), '.env'),
+    join(dirname(process.execPath), '.env'),
+    join(app.getAppPath(), '.env'),
+    join(__dirname, '../../.env')
+  ]
+  for (const envPath of candidates) {
+    if (existsSync(envPath)) {
+      loadDotenv({ path: envPath, override: false })
+    }
   }
 }
+
+loadEnvFiles()
 
 const gotTheLock = app.requestSingleInstanceLock()
 
@@ -18,6 +32,7 @@ if (!gotTheLock) {
   app.quit()
 } else {
   app.on('second-instance', () => {
+    if (isSilentStartup()) return
     createSettingsWindow()
   })
 
