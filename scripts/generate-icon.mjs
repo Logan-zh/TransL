@@ -8,9 +8,9 @@ const trayPng = resolve(resourcesDir, 'tray.png')
 const iconIco = resolve(resourcesDir, 'icon.ico')
 const icoSizes = [256, 128, 64, 48, 32, 16]
 
-const BG = '#ffffff'
-const LETTER = '#111827'
-const BORDER = '#e5e7eb'
+const BG = '#1e293b'
+const LETTER = '#f8fafc'
+const BORDER = '#334155'
 
 function iconSvg(size, { rounded = true, border = false } = {}) {
   const radius = rounded ? size * 0.2 : 0

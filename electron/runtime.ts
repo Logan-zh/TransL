@@ -14,7 +14,7 @@ import { createTray, destroyTray, showTrayBalloon } from './services/tray'
 import { APP_NAME } from './services/brand'
 import { checkForDesktopUpdate } from './services/release-check'
 import { removeLegacyDesktopShortcuts } from './services/legacy-shortcut'
-import { isSilentStartup } from './services/silent-startup'
+import { removeAllAppStartupEntries } from './services/startup-cleanup'
 import { IPC } from './services/ipc-channels'
 import {
   getSessionInfo,
@@ -217,18 +217,14 @@ export function setupApp(options?: { showStartupBalloon?: boolean }): void {
 
 export async function onAppReady(): Promise<void> {
   removeLegacyDesktopShortcuts()
+  removeAllAppStartupEntries()
   applyStoredAutoLaunch()
-  const silentStart = isSilentStartup()
-  setupApp({ showStartupBalloon: !silentStart || !hasStoredSession() })
+  setupApp({ showStartupBalloon: false })
 
   setTimeout(() => void checkForDesktopUpdate({ silent: true }), 3000)
 
   if (!hasStoredSession()) {
-    if (!silentStart) {
-      createLoginWindow()
-    } else {
-      showTrayBalloon(APP_NAME, '請從系統匣圖示開啟登入。')
-    }
+    showTrayBalloon(APP_NAME, '請從系統匣圖示開啟登入。')
     return
   }
 
@@ -239,11 +235,7 @@ export async function onAppReady(): Promise<void> {
       showTrayBalloon(APP_NAME, '尚未指派翻譯服務，請聯絡管理員後再使用翻譯功能。')
     }
   } catch {
-    if (!silentStart) {
-      createLoginWindow()
-    } else {
-      showTrayBalloon(APP_NAME, '登入狀態需更新，使用翻譯前請從系統匣開啟登入。')
-    }
+    showTrayBalloon(APP_NAME, '登入狀態需更新，使用翻譯前請從系統匣開啟登入。')
   }
 }
 

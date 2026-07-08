@@ -3,8 +3,7 @@ import { existsSync } from 'fs'
 import { dirname, join } from 'path'
 import { app } from 'electron'
 import { onAppReady, onWillQuit } from './runtime'
-import { createSettingsWindow } from './windows'
-import { isSilentStartup } from './services/silent-startup'
+import { appState } from './windows'
 
 if (process.platform === 'win32') {
   app.setAppUserModelId('com.demol.app')
@@ -32,8 +31,12 @@ if (!gotTheLock) {
   app.quit()
 } else {
   app.on('second-instance', () => {
-    if (isSilentStartup()) return
-    createSettingsWindow()
+    // If the settings window is already open, just bring it to front.
+    // Never open a new window automatically — use the tray icon instead.
+    if (appState.settingsWindow && !appState.settingsWindow.isDestroyed()) {
+      if (appState.settingsWindow.isMinimized()) appState.settingsWindow.restore()
+      appState.settingsWindow.focus()
+    }
   })
 
   app.whenReady().then(() => onAppReady())

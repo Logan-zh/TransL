@@ -4,8 +4,12 @@ import { POLL_INTERVAL_MS } from './hotkey-constants'
 import { getForegroundSettleDelayMs, hasTextSelectionAtPoint } from './uia-selection'
 import { captureTargetWindow, hasForegroundContextChanged } from './window-focus'
 import { isKeyDown } from './win32'
+import { hideSelectionTriggerWindow } from '../windows'
 
 const MIN_DRAG_PX = 4
+// After selection is triggered (mouse left released), if the user moves
+// the cursor too far away from that trigger point, cancel the hint button.
+const MAX_HINT_MOVE_PX = 150
 const DOUBLE_CLICK_MS = 500
 const MAX_CLICK_MOVE_PX = 10
 const VK_LBUTTON = 0x01
@@ -31,12 +35,14 @@ let lastReleaseTime = 0
 let lastReleaseX = 0
 let lastReleaseY = 0
 let clickCount = 0
+let triggerOrigin: { x: number; y: number } | null = null
 
 function notifySelectionGesture(x: number, y: number): void {
   if (!options || options.isBlocked() || options.isPointerOverTrigger(x, y)) {
     return
   }
 
+  triggerOrigin = { x, y }
   options.onSelectionGesture({ x, y })
 }
 
@@ -74,6 +80,7 @@ function handlePointerRelease(cursorX: number, cursorY: number): void {
   const distance = Math.hypot(dx, dy)
   const now = Date.now()
 
+  // Drag selection gesture
   if (distance >= MIN_DRAG_PX) {
     clickCount = 0
     notifySelectionGesture(cursorX, cursorY)
@@ -108,6 +115,7 @@ export function startSelectionListener(listenerOptions: SelectionListenerOptions
   isCheckingDoubleClick = false
   lastReleaseTime = 0
   clickCount = 0
+  triggerOrigin = null
 
   pollTimer = setInterval(() => {
     if (!options) {
@@ -117,6 +125,15 @@ export function startSelectionListener(listenerOptions: SelectionListenerOptions
     const down = isLeftButtonDown()
     const cursor = screen.getCursorScreenPoint()
 
+    // Cancel hint when user moves too far away after releasing left button.
+    if (!down && triggerOrigin) {
+      const cancelDistance = Math.hypot(cursor.x - triggerOrigin.x, cursor.y - triggerOrigin.y)
+      if (cancelDistance > MAX_HINT_MOVE_PX) {
+        triggerOrigin = null
+        hideSelectionTriggerWindow()
+      }
+    }
+
     if (down && !isPointerDown) {
       if (options.isBlocked() || options.isPointerOverTrigger(cursor.x, cursor.y)) {
         return
@@ -125,6 +142,7 @@ export function startSelectionListener(listenerOptions: SelectionListenerOptions
       isPointerDown = true
       downX = cursor.x
       downY = cursor.y
+      triggerOrigin = null
       captureTargetWindow()
       return
     }
@@ -146,4 +164,5 @@ export function stopSelectionListener(): void {
   isCheckingDoubleClick = false
   lastReleaseTime = 0
   clickCount = 0
+  triggerOrigin = null
 }

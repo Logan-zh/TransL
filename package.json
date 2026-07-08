@@ -1,6 +1,6 @@
 {
   "name": "demol",
-  "version": "4.1.3",
+  "version": "4.1.8",
   "description": "DEMOL — Windows text selection AI translator with floating overlay",
   "main": "./out/main/index.js",
   "scripts": {
